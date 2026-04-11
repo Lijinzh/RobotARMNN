@@ -1,0 +1,119 @@
+<mujoco model="3dof_spatial_arm_friction">
+  <!-- 三自由度空间机械臂 —— 带摩擦迟滞版（逆动力学学习 Demo 用）
+       在标准版基础上增加：
+         frictionloss  — Coulomb 静/动摩擦（产生迟滞，ESN 的核心学习目标）
+         damping 加大  — 粘性摩擦
+       两者组合近似 Stribeck 曲线（低速大摩擦、高速小摩擦）
+       
+       参数对应真实桌面机械臂（力矩约 2-6 N·m 量级）：
+         joint1（底座）：摩擦最大（载荷最重）
+         joint2（肩部）：中等
+         joint3（肘部）：最小 -->
+
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="RK4"/>
+
+  <!-- 声明所有角度值单位为弧度（MJCF 默认为度，此处覆盖） -->
+  <compiler angle="radian"/>
+
+  <default>
+    <joint armature="0.01"/>
+    <motor gear="1" ctrlrange="-50 50" ctrllimited="true"/>
+    <geom contype="1" conaffinity="1" condim="3" rgba="0.6 0.6 0.8 1"/>
+  </default>
+
+  <asset>
+    <texture name="grid" type="2d" builtin="checker"
+             rgb1="0.82 0.82 0.82" rgb2="0.62 0.62 0.62"
+             width="512" height="512"/>
+    <material name="grid_mat" texture="grid" texrepeat="6 6" reflectance="0.2"/>
+  </asset>
+
+  <worldbody>
+    <geom name="floor" type="plane" size="1.5 1.5 0.1" material="grid_mat"
+          contype="1" conaffinity="1"/>
+    <light pos="0 0 3" dir="0 0 -1" diffuse="0.8 0.8 0.8" specular="0.2 0.2 0.2"/>
+    <light pos="2 0 2" dir="-1 0 -1" diffuse="0.3 0.3 0.3"/>
+
+    <!-- 目标点标记 -->
+    <body name="target" mocap="true" pos="0.20 0.10 0.28">
+      <geom name="target_geom" type="sphere" size="0.025"
+            rgba="1.0 0.15 0.15 0.65" contype="0" conaffinity="0"/>
+    </body>
+
+    <!-- 机械臂底座 -->
+    <body name="base" pos="0 0 0">
+      <geom name="base_geom" type="cylinder" size="0.04 0.05"
+            pos="0 0 0.05" rgba="0.30 0.30 0.40 1"/>
+
+      <!-- 关节1：底座 Z 轴旋转（frictionloss=0.50 N·m Coulomb 摩擦） -->
+      <body name="turret" pos="0 0 0.10">
+        <joint name="joint1" type="hinge" axis="0 0 1"
+               range="-3.1416 3.1416"
+               damping="0.20" armature="0.02" frictionloss="0.50"/>
+
+        <geom name="turret_geom" type="cylinder" size="0.035 0.008"
+              pos="0 0 0" rgba="0.50 0.50 0.60 1"/>
+        <geom name="link0_geom" type="capsule" size="0.016"
+              fromto="0 0 0  0 0 0.10" rgba="0.60 0.60 0.70 1"/>
+
+        <!-- 关节2：肩部 Y 轴俯仰（frictionloss=0.40 N·m） -->
+        <body name="shoulder" pos="0 0 0.10">
+          <geom name="shoulder_geom" type="sphere" size="0.022"
+                rgba="0.9 0.55 0.20 1" contype="0" conaffinity="0"/>
+          <joint name="joint2" type="hinge" axis="0 -1 0"
+                 range="-1.5708 1.5708"
+                 damping="0.15" armature="0.015" frictionloss="0.40"/>
+
+          <geom name="link1_geom" type="capsule" size="0.013"
+                fromto="0 0 0  0.15 0 0" rgba="0.50 0.72 0.42 1"/>
+
+          <!-- 关节3：肘部 Y 轴俯仰（frictionloss=0.25 N·m） -->
+          <body name="elbow" pos="0.15 0 0">
+            <geom name="elbow_geom" type="sphere" size="0.018"
+                  rgba="0.9 0.55 0.20 1" contype="0" conaffinity="0"/>
+            <joint name="joint3" type="hinge" axis="0 -1 0"
+                   range="-3.1416 3.1416"
+                   damping="0.08" armature="0.010" frictionloss="0.25"/>
+
+            <geom name="link2_geom" type="capsule" size="0.010"
+                  fromto="0 0 0  0.12 0 0" rgba="0.42 0.58 0.82 1"/>
+
+            <body name="end_effector" pos="0.12 0 0">
+              <geom name="ee_geom" type="sphere" size="0.016"
+                    rgba="1.0 0.25 0.25 1" contype="0" conaffinity="0"/>
+              <site name="ee_site" size="0.005" rgba="1 1 0 1"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor name="motor1" joint="joint1" gear="1" ctrlrange="-50 50" ctrllimited="true"/>
+    <motor name="motor2" joint="joint2" gear="1" ctrlrange="-50 50" ctrllimited="true"/>
+    <motor name="motor3" joint="joint3" gear="1" ctrlrange="-50 50" ctrllimited="true"/>
+  </actuator>
+
+  <!-- 排除相邻连杆间的自碰撞检测（它们本来就重叠） -->
+  <contact>
+    <exclude body1="base"     body2="turret"   />
+    <exclude body1="turret"   body2="shoulder" />
+    <exclude body1="shoulder" body2="elbow"    />
+    <exclude body1="elbow"    body2="end_effector"/>
+  </contact>
+
+  <sensor>
+    <jointpos  name="theta1"   joint="joint1"/>
+    <jointpos  name="theta2"   joint="joint2"/>
+    <jointpos  name="theta3"   joint="joint3"/>
+    <jointvel  name="dtheta1"  joint="joint1"/>
+    <jointvel  name="dtheta2"  joint="joint2"/>
+    <jointvel  name="dtheta3"  joint="joint3"/>
+    <actuatorfrc name="tau1"   actuator="motor1"/>
+    <actuatorfrc name="tau2"   actuator="motor2"/>
+    <actuatorfrc name="tau3"   actuator="motor3"/>
+    <framepos   name="ee_pos"  objtype="site" objname="ee_site"/>
+  </sensor>
+
+</mujoco>

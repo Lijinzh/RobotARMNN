@@ -1,0 +1,115 @@
+<mujoco model="2dof_planar_arm">
+  <!-- 平面双自由度机械臂 MuJoCo MJCF 模型
+       构型：水平 XY 平面内两连杆机械臂
+         关节1 (θ1)：底座绕 Z 轴旋转，范围 [-π, π]
+         关节2 (θ2)：肘部绕 Z 轴旋转，范围 [-π, π]
+       连杆参数：L1=0.15m（大臂），L2=0.12m（小臂）
+       全部运动在 Z=0.05m 水平面内 -->
+
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="RK4"/>
+
+  <default>
+    <joint damping="0.05" armature="0.01"/>
+    <motor gear="1" ctrlrange="-5 5" ctrllimited="true"/>
+    <geom contype="1" conaffinity="1" condim="3" rgba="0.6 0.6 0.8 1"/>
+  </default>
+
+  <asset>
+    <texture name="grid" type="2d" builtin="checker"
+             rgb1="0.85 0.85 0.85" rgb2="0.65 0.65 0.65"
+             width="512" height="512"/>
+    <material name="grid_mat" texture="grid" texrepeat="8 8" reflectance="0.2"/>
+  </asset>
+
+  <worldbody>
+    <!-- 地面 -->
+    <geom name="floor" type="plane" size="1 1 0.1" material="grid_mat"
+          contype="1" conaffinity="1"/>
+
+    <!-- 灯光（顶部向下，适合俯视水平臂） -->
+    <light pos="0 0 3" dir="0 0 -1" diffuse="0.9 0.9 0.9" specular="0.1 0.1 0.1"/>
+    <light pos="1 1 2" dir="-1 -1 -2" diffuse="0.4 0.4 0.4"/>
+
+    <!-- ==================== 目标点标记（mocap 体，键盘拖动） ==================== -->
+    <body name="target" mocap="true" pos="0.20 0.0 0.05">
+      <!-- 半透明红色球体，IK 目标 -->
+      <geom name="target_geom" type="sphere" size="0.025"
+            rgba="1.0 0.15 0.15 0.7" contype="0" conaffinity="0"/>
+      <!-- 目标点十字线 -->
+      <geom name="target_x" type="capsule" size="0.004"
+            fromto="-0.04 0 0  0.04 0 0"
+            rgba="1 0 0 1" contype="0" conaffinity="0"/>
+      <geom name="target_y" type="capsule" size="0.004"
+            fromto="0 -0.04 0  0 0.04 0"
+            rgba="1 0 0 1" contype="0" conaffinity="0"/>
+    </body>
+
+    <!-- ==================== 工作空间边界圆（可达范围 r_max=0.27m） ==================== -->
+    <!-- 用于可视化提示，不参与碰撞 -->
+
+    <!-- ==================== 机械臂底座 ==================== -->
+    <body name="base" pos="0 0 0">
+      <!-- 底座小圆柱 -->
+      <geom name="base_geom" type="cylinder" size="0.025 0.04"
+            pos="0 0 0.04" rgba="0.35 0.35 0.45 1"
+            contype="1" conaffinity="1"/>
+
+      <!-- ==================== 关节1：肩部 Z 轴旋转 ==================== -->
+      <body name="link1_body" pos="0 0 0.05">
+        <joint name="joint1" type="hinge" axis="0 0 1"
+               range="-3.1416 3.1416"
+               damping="0.06" armature="0.015"/>
+
+        <!-- 肩关节轴承球 -->
+        <geom name="shoulder_geom" type="sphere" size="0.018"
+              rgba="0.9 0.6 0.2 1" contype="0" conaffinity="0"/>
+
+        <!-- 大臂（沿 X 方向，长度 L1=0.15m） -->
+        <geom name="link1_geom" type="capsule" size="0.013"
+              fromto="0 0 0  0.15 0 0"
+              rgba="0.55 0.72 0.45 1"/>
+
+        <!-- ==================== 关节2：肘部 Z 轴旋转 ==================== -->
+        <body name="link2_body" pos="0.15 0 0">
+          <!-- 肘关节轴承球 -->
+          <geom name="elbow_geom" type="sphere" size="0.015"
+                rgba="0.9 0.6 0.2 1" contype="0" conaffinity="0"/>
+
+          <joint name="joint2" type="hinge" axis="0 0 1"
+                 range="-3.1416 3.1416"
+                 damping="0.04" armature="0.01"/>
+
+          <!-- 小臂（沿 X 方向，长度 L2=0.12m） -->
+          <geom name="link2_geom" type="capsule" size="0.010"
+                fromto="0 0 0  0.12 0 0"
+                rgba="0.45 0.60 0.80 1"/>
+
+          <!-- 末端执行器 -->
+          <body name="end_effector" pos="0.12 0 0">
+            <geom name="ee_geom" type="sphere" size="0.016"
+                  rgba="1.0 0.25 0.25 1" contype="0" conaffinity="0"/>
+            <site name="ee_site" size="0.005" rgba="1 1 0 1"/>
+          </body>
+
+        </body>
+      </body>
+    </body>
+
+  </worldbody>
+
+  <!-- ==================== 执行器 ==================== -->
+  <actuator>
+    <motor name="motor1" joint="joint1" gear="1" ctrlrange="-5 5" ctrllimited="true"/>
+    <motor name="motor2" joint="joint2" gear="1" ctrlrange="-5 5" ctrllimited="true"/>
+  </actuator>
+
+  <!-- ==================== 传感器 ==================== -->
+  <sensor>
+    <jointpos  name="theta1"   joint="joint1"/>
+    <jointpos  name="theta2"   joint="joint2"/>
+    <jointvel  name="dtheta1"  joint="joint1"/>
+    <jointvel  name="dtheta2"  joint="joint2"/>
+    <framepos  name="ee_pos"   objtype="site" objname="ee_site"/>
+  </sensor>
+
+</mujoco>

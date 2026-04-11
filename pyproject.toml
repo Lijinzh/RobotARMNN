@@ -1,0 +1,27 @@
+[project]
+name = "robotarmnn"
+version = "0.1.0"
+description = "双自由度机械臂运动学建模与神经网络控制"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "mujoco>=3.2.0",
+    "torch>=2.3.0",
+    "numpy>=1.26.0",
+    "matplotlib>=3.8.0",
+    "scipy>=1.13.0",
+    "onnx>=1.16.0",
+    "tqdm>=4.66.0",
+    "onnxscript>=0.6.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.format]
+preview = true

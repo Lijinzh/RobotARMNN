@@ -1,0 +1,130 @@
+<mujoco model="3dof_spatial_arm">
+  <!-- 三自由度空间机械臂 MuJoCo MJCF 模型
+       构型：
+         关节1 (θ1): 底座绕 Z 轴旋转（方位角），范围 [-π, π]
+         关节2 (θ2): 肩部绕 Y 轴俯仰（仰角），范围 [-π/2, π/2]
+         关节3 (θ3): 肘部绕 Y 轴俯仰（相对角），范围 [-π, π]
+       连杆参数：L0=0.10m（底柱），L1=0.15m（大臂），L2=0.12m（小臂） -->
+
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="RK4"/>
+
+  <default>
+    <joint damping="0.05" armature="0.01"/>
+    <motor gear="1" ctrlrange="-6 6" ctrllimited="true"/>
+    <geom contype="1" conaffinity="1" condim="3" rgba="0.6 0.6 0.8 1"/>
+  </default>
+
+  <asset>
+    <texture name="grid" type="2d" builtin="checker"
+             rgb1="0.82 0.82 0.82" rgb2="0.62 0.62 0.62"
+             width="512" height="512"/>
+    <material name="grid_mat" texture="grid" texrepeat="6 6" reflectance="0.2"/>
+  </asset>
+
+  <worldbody>
+    <!-- 地面 -->
+    <geom name="floor" type="plane" size="1.5 1.5 0.1" material="grid_mat"
+          contype="1" conaffinity="1"/>
+
+    <!-- 多方向灯光 -->
+    <light pos="0 0 3" dir="0 0 -1" diffuse="0.8 0.8 0.8" specular="0.2 0.2 0.2"/>
+    <light pos="2 0 2" dir="-1 0 -1" diffuse="0.3 0.3 0.3"/>
+
+    <!-- ==================== 目标点标记（mocap 体） ==================== -->
+    <body name="target" mocap="true" pos="0.20 0.10 0.28">
+      <!-- 半透明红色球体 -->
+      <geom name="target_geom" type="sphere" size="0.025"
+            rgba="1.0 0.15 0.15 0.65" contype="0" conaffinity="0"/>
+      <!-- 三轴十字线 -->
+      <geom name="target_x" type="capsule" size="0.004"
+            fromto="-0.04 0 0  0.04 0 0" rgba="1 0 0 1" contype="0" conaffinity="0"/>
+      <geom name="target_y" type="capsule" size="0.004"
+            fromto="0 -0.04 0  0 0.04 0" rgba="0 1 0 1" contype="0" conaffinity="0"/>
+      <geom name="target_z" type="capsule" size="0.004"
+            fromto="0 0 -0.04  0 0 0.04" rgba="0 0 1 1" contype="0" conaffinity="0"/>
+    </body>
+
+    <!-- ==================== 机械臂底座 ==================== -->
+    <body name="base" pos="0 0 0">
+      <!-- 底座圆柱 -->
+      <geom name="base_geom" type="cylinder" size="0.04 0.05"
+            pos="0 0 0.05" rgba="0.30 0.30 0.40 1"/>
+
+      <!-- ==================== 关节1：底座 Z 轴旋转 ==================== -->
+      <body name="turret" pos="0 0 0.10">
+        <joint name="joint1" type="hinge" axis="0 0 1"
+               range="-3.1416 3.1416"
+               damping="0.08" armature="0.02"/>
+
+        <!-- 旋转盘 -->
+        <geom name="turret_geom" type="cylinder" size="0.035 0.008"
+              pos="0 0 0" rgba="0.50 0.50 0.60 1"/>
+
+        <!-- 底柱（L0=0.10m，沿 Z 轴向上） -->
+        <geom name="link0_geom" type="capsule" size="0.016"
+              fromto="0 0 0  0 0 0.10"
+              rgba="0.60 0.60 0.70 1"/>
+
+        <!-- ==================== 关节2：肩部 Y 轴俯仰 ==================== -->
+        <body name="shoulder" pos="0 0 0.10">
+          <!-- 肩关节轴承 -->
+          <geom name="shoulder_geom" type="sphere" size="0.022"
+                rgba="0.9 0.55 0.20 1" contype="0" conaffinity="0"/>
+
+          <joint name="joint2" type="hinge" axis="0 -1 0"
+                 range="-1.5708 1.5708"
+                 damping="0.06" armature="0.015"/>
+
+          <!-- 大臂（L1=0.15m，沿 X 方向） -->
+          <geom name="link1_geom" type="capsule" size="0.013"
+                fromto="0 0 0  0.15 0 0"
+                rgba="0.50 0.72 0.42 1"/>
+
+          <!-- ==================== 关节3：肘部 Y 轴俯仰 ==================== -->
+          <body name="elbow" pos="0.15 0 0">
+            <!-- 肘关节轴承 -->
+            <geom name="elbow_geom" type="sphere" size="0.018"
+                  rgba="0.9 0.55 0.20 1" contype="0" conaffinity="0"/>
+
+            <joint name="joint3" type="hinge" axis="0 -1 0"
+                   range="-3.1416 3.1416"
+                   damping="0.04" armature="0.010"/>
+
+            <!-- 小臂（L2=0.12m，沿 X 方向） -->
+            <geom name="link2_geom" type="capsule" size="0.010"
+                  fromto="0 0 0  0.12 0 0"
+                  rgba="0.42 0.58 0.82 1"/>
+
+            <!-- 末端执行器 -->
+            <body name="end_effector" pos="0.12 0 0">
+              <geom name="ee_geom" type="sphere" size="0.016"
+                    rgba="1.0 0.25 0.25 1" contype="0" conaffinity="0"/>
+              <site name="ee_site" size="0.005" rgba="1 1 0 1"/>
+            </body>
+
+          </body>
+        </body>
+      </body>
+    </body>
+
+  </worldbody>
+
+  <!-- ==================== 执行器 ==================== -->
+  <actuator>
+    <motor name="motor1" joint="joint1" gear="1" ctrlrange="-6 6" ctrllimited="true"/>
+    <motor name="motor2" joint="joint2" gear="1" ctrlrange="-6 6" ctrllimited="true"/>
+    <motor name="motor3" joint="joint3" gear="1" ctrlrange="-6 6" ctrllimited="true"/>
+  </actuator>
+
+  <!-- ==================== 传感器 ==================== -->
+  <sensor>
+    <jointpos  name="theta1"   joint="joint1"/>
+    <jointpos  name="theta2"   joint="joint2"/>
+    <jointpos  name="theta3"   joint="joint3"/>
+    <jointvel  name="dtheta1"  joint="joint1"/>
+    <jointvel  name="dtheta2"  joint="joint2"/>
+    <jointvel  name="dtheta3"  joint="joint3"/>
+    <framepos  name="ee_pos"   objtype="site" objname="ee_site"/>
+  </sensor>
+
+</mujoco>
