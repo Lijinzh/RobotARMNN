@@ -1,23 +1,43 @@
-# RobotARMNN — 机械臂神经网络逆运动学
+# RobotARMNN — 机械臂神经网络运动学与逆动力学
 
-基于 MuJoCo 仿真的两款机械臂（平面 2-DOF / 空间 3-DOF），训练神经网络（MLP + ESN）
-完成逆运动学求解，支持 MuJoCo 交互式可视化。
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-orange)](https://pytorch.org/)
+[![MuJoCo](https://img.shields.io/badge/MuJoCo-3.x-green)](https://mujoco.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+基于 **MuJoCo** 物理仿真的机械臂神经网络学习 Demo，包含两个完整实验模块：
+
+| 模块 | 任务 | 网络 |
+|------|------|------|
+| **逆运动学 (IK)** | 目标末端坐标 → 关节角（2-DOF 平面臂 + 3-DOF 空间臂） | MLP、ESN |
+| **逆动力学 (IDyn)** | 期望轨迹 → 前馈力矩（3-DOF 带摩擦空间臂） | MLP、ESN、LSTM、GRU |
+
+---
+
+## 目录
+
+- [机械臂构型](#机械臂构型)
+- [项目结构](#项目结构)
+- [环境配置](#环境配置)
+- [快速开始](#快速开始)
+- [模块一：逆运动学 IK](#模块一逆运动学-ik)
+- [模块二：逆动力学 IDyn](#模块二逆动力学-idyn)
+- [训练结果](#训练结果)
+- [可视化操作说明](#可视化操作说明)
+- [技术细节](#技术细节)
 
 ---
 
 ## 机械臂构型
 
-### 平面 2-DOF 臂（水平 XY 平面）
+### 平面 2-DOF 臂
 
 ```
-关节1 (θ1)：底座绕 Z 轴旋转（肩部），范围 [-π, π]
-关节2 (θ2)：肘部绕 Z 轴旋转（相对大臂），范围 [-π, π]
+关节1 (θ1)：底座绕 Z 轴旋转（肩部）  范围 [-π, π]
+关节2 (θ2)：肘部绕 Z 轴旋转（相对大臂）范围 [-π, π]
 L1 = 0.15 m（大臂）  L2 = 0.12 m（小臂）
-
-正运动学：
-  X = L1·cos(θ1) + L2·cos(θ1+θ2)
-  Y = L1·sin(θ1) + L2·sin(θ1+θ2)
-
+正运动学：X = L1·cos(θ1)+L2·cos(θ1+θ2)
+         Y = L1·sin(θ1)+L2·sin(θ1+θ2)
 可达半径：r_min = 0.03 m，r_max = 0.27 m
 ```
 
@@ -25,43 +45,13 @@ L1 = 0.15 m（大臂）  L2 = 0.12 m（小臂）
 
 ```
 关节1 (θ1)：底座绕 Z 轴旋转
-关节2 (θ2)：肩部绕 Y 轴俯仰，范围 [-π/2, π/2]
-关节3 (θ3)：肘部绕 Y 轴俯仰，范围 [-π, π]
+关节2 (θ2)：肩部绕 Y 轴俯仰   范围 [-π/2, π/2]
+关节3 (θ3)：肘部绕 Y 轴俯仰   范围 [-π, π]
 L0 = 0.20 m（底柱高度）  L1 = 0.15 m（大臂）  L2 = 0.12 m（小臂）
-
-正运动学：
-  r  = L1·cos(θ2) + L2·cos(θ2+θ3)
-  X  = r·cos(θ1)，Y = r·sin(θ1)
-  Z  = L0 + L1·sin(θ2) + L2·sin(θ2+θ3)
+正运动学：r = L1·cos(θ2)+L2·cos(θ2+θ3)
+         X = r·cos(θ1)，Y = r·sin(θ1)
+         Z = L0+L1·sin(θ2)+L2·sin(θ2+θ3)
 ```
-
----
-
-## 神经网络模型
-
-### IKNN_MLP — 通用逆运动学 MLP
-
-| 项目 | 2-DOF | 3-DOF |
-|------|-------|-------|
-| 输入 | `[X, Y]`（2 维） | `[X, Y, Z]`（3 维，含输入归一化） |
-| 输出 | `[sinθ1,cosθ1,sinθ2,cosθ2]`（4 维） | `[sinθ1..cosθ3]`（6 维） |
-| 网络结构 | 3 × Linear(256) + ReLU | 5 × Linear(384) + ReLU（更大容量）|
-| 参数量 | ~133K | ~590K |
-| 训练 | AdamW + Warmup Cosine LR，batch=65536，全量 GPU |
-| 输入归一化 | 无（XY 分布均匀） | **有**（Z 轴有 L0=0.20 偏置，归一化是精度关键）|
-
-### IKNN_ESN — 增强型 ESN（随机储备池 + MLP 读出）
-
-| 项目 | 值 |
-|------|---|
-| 架构 | 固定随机储备池（512 维 tanh）→ MLP 读出（128 隐层） |
-| 可训练参数 | ~66K（仅 readout MLP） |
-| 输入归一化 | 有（`set_input_stats` 自动设置）|
-| 训练策略 | 预计算全量储备池激活 H → 只训练 MLP 读出 |
-| 优势 | 训练极快（~3s）；小网络；3DOF 旧 MLP 无归一化时 ESN 反而更好 |
-
-> **为什么用 sin/cos 输出？**  
-> θ = atan2(Y,X) 在 ±π 处存在数值跳变，改用 `[sinθ, cosθ]` 输出圆周连续，精度大幅提升。
 
 ---
 
@@ -69,221 +59,373 @@ L0 = 0.20 m（底柱高度）  L1 = 0.15 m（大臂）  L2 = 0.12 m（小臂）
 
 ```
 RobotARMNN/
-├── src/
-│   ├── kinematics_2dof.py    # 平面 2-DOF 正/逆运动学 + sin/cos 工具
-│   ├── kinematics_3dof.py    # 空间 3-DOF 正/逆运动学（几何解耦）
-│   ├── arm_2dof.xml          # MuJoCo MJCF（平面臂 + mocap 目标球）
-│   ├── arm_3dof.xml          # MuJoCo MJCF（空间臂 + 三轴十字标记）
-│   ├── models.py             # 神经网络定义（IKNN_MLP、IKNN_ESN、CurrentNN）
-│   ├── data_gen.py           # 统一数据生成（.npz + .csv）
-│   ├── train.py              # 统一训练脚本（MLP + ESN，2-DOF + 3-DOF）
-│   └── visualize_mujoco.py   # MuJoCo 交互可视化（方向键控制，NN/解析 IK）
+│
+├── src/                            # 所有源代码
+│   ├── __init__.py
+│   │
+│   ├── # ─── 运动学 ───────────────────────────────
+│   ├── kinematics_2dof.py          # 平面 2-DOF 正/逆运动学 + sin/cos 工具
+│   ├── kinematics_3dof.py          # 空间 3-DOF 正/逆运动学（几何解耦法）
+│   │
+│   ├── # ─── MuJoCo 模型 ──────────────────────────
+│   ├── arm_2dof.xml                # 平面臂 MJCF（含 mocap 目标球）
+│   ├── arm_3dof.xml                # 空间臂 MJCF（含三轴标记）
+│   ├── arm_3dof_friction.xml       # 带 Coulomb 摩擦的 3-DOF 臂（逆动力学用）
+│   │
+│   ├── # ─── 神经网络模型定义 ──────────────────────
+│   ├── models.py                   # IKNN_MLP / IKNN_ESN / IDynMLP /
+│   │                               # IDynESN / IDynLSTM / IDynGRU / CurrentNN
+│   │
+│   ├── # ─── 模块一：逆运动学 IK ───────────────────
+│   ├── data_gen.py                 # IK 训练数据生成（随机采样工作空间，50 万点）
+│   ├── train.py                    # IK 训练脚本（MLP + ESN，2-DOF + 3-DOF）
+│   ├── visualize_mujoco.py         # MuJoCo 交互可视化（方向键控制目标点）
+│   ├── visualize_ik.py             # IK 误差对比图（CDF / 柱状图 / 散点 / 直方图）
+│   │
+│   └── # ─── 模块二：逆动力学 IDyn ─────────────────
+│       ├── data_gen_idyn.py        # IDyn 数据生成（MuJoCo 高刚度 PD 激励，30 条轨迹）
+│       ├── train_idyn.py           # IDyn 训练脚本（MLP / ESN / LSTM / GRU）
+│       └── visualize_idyn.py       # IDyn 控制误差对比图 + MuJoCo 实时仿真可视化
+│
 ├── tests/
-│   └── test_kinematics.py    # 18 项运动学单元测试
-├── data/                     # 训练数据（.npz + .csv，各 50 万样本）
-├── checkpoints/              # 训练后模型权重（.pt）
-├── main.py                   # 快速入口：运动学演示
-├── pyproject.toml
+│   ├── __init__.py
+│   └── test_kinematics.py          # 18 项运动学单元测试
+│
+├── checkpoints/                    # 已训练模型权重（*.pt / *.npz）
+│   ├── ik_2dof_mlp_best.pt         # 2-DOF IK MLP
+│   ├── ik_2dof_esn_best.pt         # 2-DOF IK ESN
+│   ├── ik_3dof_mlp_best.pt         # 3-DOF IK MLP
+│   ├── ik_3dof_esn_best.pt         # 3-DOF IK ESN
+│   ├── idyn_3dof_mlp_best.pt       # 3-DOF IDyn MLP
+│   ├── idyn_3dof_esn_best.pt       # 3-DOF IDyn ESN
+│   ├── idyn_3dof_lstm_best.pt      # 3-DOF IDyn LSTM
+│   └── idyn_3dof_gru_best.pt       # 3-DOF IDyn GRU
+│
+├── data/                           # 训练数据（.gitignore 忽略，需自行生成）
+├── export/                         # 可视化输出图片（.gitignore 忽略）
+│
+├── main.py                         # 快速入口：运动学解析演示
+├── pyproject.toml                  # 依赖声明（uv 管理）
+├── uv.lock                         # 依赖锁定文件
+├── .python-version                 # Python 版本锁定（3.10）
+├── LICENSE                         # MIT 许可证
 └── README.md
 ```
+
+---
+
+## 环境配置
+
+### 前置要求
+
+| 依赖 | 版本 | 说明 |
+|------|------|------|
+| Python | 3.10 – 3.12 | 推荐 3.10 |
+| uv | 最新版 | 替代 pip 的包管理器，速度快 10× |
+| CUDA | 12.x （可选） | GPU 训练。无 CUDA 时自动退到 CPU |
+| Git | ≥ 2.x | 克隆仓库 |
+
+> **不需要手动创建虚拟环境**，`uv sync` 会自动创建并安装所有依赖。
+
+---
+
+### Linux / macOS
+
+```bash
+# 1. 安装 uv（若已安装可跳过）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env        # 或重开终端让 PATH 生效
+
+# 2. 克隆项目
+git clone https://github.com/Lijinzh/RobotARMNN.git
+cd RobotARMNN
+
+# 3. 初始化环境（自动创建 .venv，安装所有依赖）
+uv sync
+
+# 4. 验证安装
+uv run python -c "import torch, mujoco; print('torch:', torch.__version__); print('mujoco:', mujoco.__version__)"
+```
+
+**MuJoCo 依赖（Linux）**：`apt install libgl1-mesa-glx libglu1-mesa`（已有桌面环境则无需）
+
+---
+
+### Windows
+
+```powershell
+# 1. 安装 uv（PowerShell，需要 Execution Policy 允许运行脚本）
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+# 或通过 winget：winget install --id=astral-sh.uv -e
+
+# 2. 重开 PowerShell 让 PATH 生效，克隆项目
+git clone https://github.com/Lijinzh/RobotARMNN.git
+cd RobotARMNN
+
+# 3. 初始化环境
+uv sync
+
+# 4. 验证安装
+uv run python -c "import torch, mujoco; print('torch:', torch.__version__); print('mujoco:', mujoco.__version__)"
+```
+
+**Windows 注意事项**：
+- MuJoCo 3.x 在 Windows 10/11 64-bit 原生支持，无需额外依赖。
+- GPU 版 PyTorch：若 `uv sync` 安装的是 CPU 版本，可执行：
+  ```powershell
+  uv add torch --index https://download.pytorch.org/whl/cu124
+  ```
+- 可视化脚本中的 `MPLBACKEND=Agg` 在 PowerShell 中写法为：
+  ```powershell
+  $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --save
+  ```
+
+---
+
+### GPU 说明
+
+训练脚本会自动检测并使用 GPU（如有）。训练用 GPU 可显著加速：
+
+| 硬件 | IK MLP 训练 500ep | IDyn GRU 训练 1000ep |
+|------|------------------|---------------------|
+| RTX 4090 | ~7 s | ~60 s |
+| CPU | ~5 min | ~30 min |
 
 ---
 
 ## 快速开始
 
 ```bash
-# 安装依赖
-uv sync
-
-# 运动学演示（无需训练）
+# 运动学解析演示（无需训练数据或模型）
 uv run main.py
 
-# 1. 生成训练数据（50 万样本，含 .csv 方便查看）
-uv run src/data_gen.py --arm all
+# 完整工作流：逆运动学（IK）
+uv run src/data_gen.py --arm all          # 生成 IK 训练数据（50 万点）
+uv run src/train.py --arm all --model all  # 训练全部 IK 模型
+uv run src/visualize_ik.py --arm all      # 误差对比图
 
-# 2. 训练 IK 网络
-uv run src/train.py --arm 2dof --model mlp   # 平面臂 MLP (~7s/500ep)
-uv run src/train.py --arm 2dof --model esn   # 平面臂 ESN (~3s/300ep)
-uv run src/train.py --arm 3dof --model mlp   # 空间臂 MLP (自动 384×5, ~25s/800ep)
-uv run src/train.py --arm 3dof --model esn   # 空间臂 ESN (~5s/300ep)
+# 完整工作流：逆动力学（IDyn）
+uv run src/data_gen_idyn.py --n_traj 30   # 生成 30 条激励轨迹（约 2 min）
+uv run src/train_idyn.py --model all       # 训练全部 IDyn 模型（约 3 min）
+uv run src/visualize_idyn.py --model gru   # 对比可视化
 
-# 或一次性全部训练
-uv run src/train.py --arm all --model all
-
-# 3. 交互可视化（方向键移动目标点）
-uv run src/visualize_mujoco.py --arm 2dof                            # 2DOF 解析 IK
-uv run src/visualize_mujoco.py --arm 3dof                            # 3DOF 解析 IK
-uv run src/visualize_mujoco.py --arm 2dof --use_nn                   # 2DOF MLP
-uv run src/visualize_mujoco.py --arm 2dof --use_nn --model_type esn  # 2DOF ESN
-uv run src/visualize_mujoco.py --arm 3dof --use_nn                   # 3DOF MLP
-uv run src/visualize_mujoco.py --arm 3dof --use_nn --model_type esn  # 3DOF ESN
-
-# 4. IK 误差对比可视化（解析 vs MLP vs ESN，纯运动学，无需仿真）
-uv run src/visualize_ik.py --arm 2dof          # 2DOF 误差对比
-uv run src/visualize_ik.py --arm 3dof          # 3DOF 误差对比
-uv run src/visualize_ik.py --arm all           # 两种臂都画
-MPLBACKEND=Agg uv run src/visualize_ik.py --arm all --save  # 保存到 export/
-
-# 5. 单元测试
+# 单元测试
 uv run pytest tests/ -v
 ```
 
 ---
 
-## 训练结果（RTX 4090，50 万样本）
+## 模块一：逆运动学 IK
 
-| 模型 | 臂类型 | 平均角度误差 | 训练耗时 |
-|------|--------|------------|---------|
-| IKNN_MLP (hidden=256, layers=3) | 2-DOF | ~1.9° | ~7 s / 500ep |
-| IKNN_ESN (reservoir=512) | 2-DOF | ~3.3° | ~3 s / 300ep |
-| IKNN_MLP (hidden=384, layers=5, 含归一化) | 3-DOF | 待重训 | ~25 s / 800ep |
-| IKNN_ESN (reservoir=512) | 3-DOF | 待重训 | ~5 s / 300ep |
+### 数据生成
+
+```bash
+uv run src/data_gen.py --arm 2dof   # 平面臂（50 万点，约 10 s）
+uv run src/data_gen.py --arm 3dof   # 空间臂（50 万点，含 r<0 过滤，约 15 s）
+uv run src/data_gen.py --arm all    # 两种臂都生成
+```
+
+生成文件保存到 `data/`（`.npz` 格式 + `.csv` 方便查看，已加入 `.gitignore`）。
+
+### 训练
+
+```bash
+uv run src/train.py --arm 2dof --model mlp        # 2-DOF MLP  (~7 s / 500 ep)
+uv run src/train.py --arm 2dof --model esn        # 2-DOF ESN  (~3 s / 300 ep)
+uv run src/train.py --arm 3dof --model mlp        # 3-DOF MLP  (~9 s / 500 ep)
+uv run src/train.py --arm 3dof --model esn        # 3-DOF ESN  (~5 s / 300 ep)
+uv run src/train.py --arm all --model all          # 全部训练
+```
+
+训练完成后权重自动保存到 `checkpoints/ik_{arm}_{model}_best.pt`。
+
+### 可视化
+
+**误差对比图（无需 MuJoCo 窗口）：**
+
+```bash
+uv run src/visualize_ik.py --arm 2dof           # 2-DOF：弹出交互窗口
+uv run src/visualize_ik.py --arm 3dof
+uv run src/visualize_ik.py --arm all --save     # 保存到 export/
+
+# Windows PowerShell 保存：
+$env:MPLBACKEND="Agg"; uv run src/visualize_ik.py --arm all --save
+```
+
+**MuJoCo 交互可视化（方向键控制目标点）：**
+
+```bash
+uv run src/visualize_mujoco.py --arm 2dof                             # 解析 IK
+uv run src/visualize_mujoco.py --arm 2dof --use_nn                    # MLP IK
+uv run src/visualize_mujoco.py --arm 2dof --use_nn --model_type esn   # ESN IK
+uv run src/visualize_mujoco.py --arm 3dof --use_nn                    # 3-DOF MLP
+uv run src/visualize_mujoco.py --arm 3dof --use_nn --model_type esn
+```
+
+### IK 模型架构
+
+| 模型 | 输入维度 | 输出维度 | 网络结构 | 参数量 |
+|------|---------|---------|---------|--------|
+| IKNN_MLP (2-DOF) | 2 `[X,Y]` | 4 `[sinθ₁,cosθ₁,sinθ₂,cosθ₂]` | 3 × Linear(256) + ReLU | ~133K |
+| IKNN_MLP (3-DOF) | 2 `[r_xy, z']` | 4 `[sinθ₂,cosθ₂,sinθ₃,cosθ₃]` | 5 × Linear(384) + ReLU | ~590K |
+| IKNN_ESN (2-DOF) | 2 | 4 | 储层(512) + MLP读出(128) | ~66K 可训练 |
+| IKNN_ESN (3-DOF) | 2 | 4 | 储层(512) + MLP读出(128) | ~66K 可训练 |
+
+> 3-DOF 使用**几何解耦**：θ₁ 由 `atan2(Y,X)` 精确求解，MLP/ESN 只学竖直平面子问题 `(r_xy, z') → (θ₂, θ₃)`，简化映射复杂度，末端误差从 13.57° 降至 0.36°。
+>
+> 输出用 `[sinθ, cosθ]` 编码而非直接输出角度，避免 ±π 跳变导致的训练不稳定。
 
 ---
 
-## 模型选择
+## 模块二：逆动力学 IDyn
 
-可视化时通过 `--model_type` 参数选择模型：
+**控制律**：τ = τ_ff(q_des, dq_des) + KP·(q_des−q) + KD·(dq_des−dq)
+
+前馈力矩 τ_ff 由神经网络预测，PD 项负责误差纠偏（弱刚度：KP=8, KD=1.5）。
+
+### 数据生成
 
 ```bash
-# MLP（精度较高，全参数可训练；默认选项）
-uv run src/visualize_mujoco.py --arm 2dof --use_nn --model_type mlp
-
-# ESN（训练快，推理快，小网络）
-uv run src/visualize_mujoco.py --arm 2dof --use_nn --model_type esn
-
-# 指定自定义检查点路径
-uv run src/visualize_mujoco.py --arm 3dof --use_nn --model_type mlp \
-    --ckpt_3dof /path/to/model.pt
+uv run src/data_gen_idyn.py --n_traj 30   # 生成 30 条激励轨迹（推荐最小值）
+uv run src/data_gen_idyn.py --n_traj 60   # 更多轨迹，精度更高
 ```
 
-**默认检查点查找规则**：`checkpoints/ik_{arm}_{model_type}_best.pt`
+每条轨迹用高刚度 PD（KP=300, KD=5）驱动，跟踪误差 < 0.1°，标签可信度高。
+数据保存于 `data/idyn_3dof_*.npz`（已加入 `.gitignore`）。
 
-程序启动时会打印加载的模型信息：
+### 训练
+
+```bash
+uv run src/train_idyn.py --model all     # 训练全部 4 种模型（MLP/ESN/LSTM/GRU）
+uv run src/train_idyn.py --model gru     # 只训练 GRU（最优模型）
+uv run src/train_idyn.py --model lstm
+uv run src/train_idyn.py --model mlp
+uv run src/train_idyn.py --model esn
 ```
-[2DOF] NN IK 模型已加载：[2DOF] MLP IK (hidden=256, layers=3, 含输入归一化)
-       路径: checkpoints/ik_2dof_mlp_best.pt
+
+权重保存至 `checkpoints/idyn_3dof_{model}_best.pt`。每次只打印训练结束时的一行汇总，不刷屏。
+
+### 可视化
+
+```bash
+# 所有模型对比（Matplotlib 图，无 MuJoCo）
+uv run src/visualize_idyn.py
+uv run src/visualize_idyn.py --save            # 保存图片到 export/
+
+# 指定模型（默认全部）
+uv run src/visualize_idyn.py --model gru
+uv run src/visualize_idyn.py --model gru lstm
+
+# 同时打开 MuJoCo 实时仿真窗口
+uv run src/visualize_idyn.py --model gru --mujoco
+
+# 调整测试轨迹参数
+uv run src/visualize_idyn.py --amp_scale 3.0 --duration 10.0 --save
+
+# Windows PowerShell 保存：
+$env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --save
 ```
+
+### IDyn 模型架构
+
+| 模型 | 架构 | 记忆 | 参数量 |
+|------|------|------|--------|
+| IDynMLP | 4×Linear(256, Tanh) + 输入归一化 | 无 | ~330K |
+| IDynESN | 固定储层(512) + MLP读出 | 递归状态 | ~66K 可训练 |
+| IDynLSTM | 2层LSTM(256) + Linear | 遗忘/输入/输出门 | ~790K |
+| IDynGRU | 2层GRU(256) + Linear | 重置/更新门 | ~595K |
+
+输入：`[q₁,q₂,q₃, dq₁,dq₂,dq₃]`（6维）  输出：`[τ₁, τ₂, τ₃]`（N·m）
+
+---
+
+## 训练结果
+
+### IK 末端位置误差（8000 随机测试点）
+
+| 模型 | 2-DOF 均值 | 2-DOF p95 | 3-DOF 均值 | 3-DOF p95 |
+|------|-----------|-----------|-----------|-----------|
+| 解析 IK（基准） | 0.000 mm | 0.00 mm | 0.000 mm | 0.00 mm |
+| MLP IK | 0.923 mm | 2.1 mm | 1.076 mm | 1.9 mm |
+| ESN IK | 6.586 mm | 13.1 mm | 4.863 mm | 9.8 mm |
+
+### IDyn 闭环跟踪误差（RTX 4090，30 条轨迹）
+
+| 方案 | 验证 MAE | 闭环误差（均值） | 各关节误差 [J1, J2, J3] |
+|------|---------|---------------|----------------------|
+| 纯 PD（基准，无前馈） | — | 2.117° | [2.774, 1.877, 1.700]° |
+| PD + MLP | 0.042 N·m | 0.160° | [0.358, 0.071, 0.051]° |
+| PD + ESN | 0.054 N·m | 0.180° | [0.341, 0.086, 0.112]° |
+| PD + LSTM | 0.043 N·m | 0.167° | [0.303, 0.094, 0.104]° |
+| **PD + GRU** | **0.014 N·m** | **0.042°** | **[0.043, 0.045, 0.038]°** |
+
+> GRU 前馈比纯 PD 误差降低 **50×**，各关节误差均匀。
 
 ---
 
 ## 可视化操作说明
 
+`visualize_mujoco.py` 和 `visualize_idyn.py`（`--mujoco` 模式）支持以下键盘操作：
+
 | 按键 | 动作 |
 |------|------|
-| ↑ / ↓ | 目标点 +Y / -Y（前后，长按连续移动） |
-| ← / → | 目标点 -X / +X（左右，长按连续移动） |
-| 小键盘 8 / 2 | 目标点 +Z / -Z（上下，仅 3-DOF，长按连续移动） |
-| R | 复位目标点到初始位置 |
-| Space | 启动/停止自动轨迹演示 |
-| **P** | 打印当前目标坐标、关节角度与末端位置 |
+| ↑ / ↓ | 目标 +Y / -Y（长按连续移动） |
+| ← / → | 目标 -X / +X（长按连续移动） |
+| 小键盘 8 / 2 | 目标 +Z / -Z（仅 3-DOF）|
+| R | 复位目标点 |
+| Space | 启动 / 停止自动轨迹演示 |
+| P | 打印当前坐标、关节角、末端位置 |
 | 鼠标左键拖动 | 旋转视角 |
 | 鼠标右键拖动 | 平移视角 |
 | 鼠标滚轮 | 缩放 |
 
 ---
 
-## 3-DOF MLP 精度改进说明
+## 技术细节
 
-旧 3-DOF MLP 精度极差（13.57°），经过以下三步几何解耦后降至 **0.36°**（优于 2DOF 的 0.51°）：
+### 为什么选 sin/cos 输出编码？
 
-| 步骤 | 问题 | 修复 |
-|------|------|------|
-| **1. 几何解耦** | 网络需从原始 XYZ 自行"发现" r_xy=√(X²+Y²) | θ1 → 解析精确（atan2(Y,X)）；NN 只学竖直平面 2-link IK |
-| **2. 单值过滤** | r = L1·cosθ2 + L2·cos(θ2+θ3) 可为负，导致 r_xy=|r| 多值映射，NN 无法学习 | 数据生成时过滤 r<0.01 样本（约 20.7%） |
-| **3. 维度降低** | 原始输入 [X,Y,Z]→[sinθ1..sinθ3] 是 3D→6D 复杂映射 | 改为 [r_xy, z']→[sinθ2,cosθ2,sinθ3,cosθ3] 等效 2D 平面 IK |
+直接回归角度 θ 存在 ±π 跳变（如 -π 和 +π 是同一方向但数值差 2π），网络难以学习。  
+改为输出 `[sinθ, cosθ]` 后圆周空间连续，再用 `atan2(sin, cos)` 还原，精度显著提升。
 
-**结果对比：**
+### 3-DOF IK 几何解耦
 
-| 方案 | 误差 | 训练时间 |
-|------|------|---------|
-| 旧 3DOF MLP（XYZ 输入） | 13.57° | 800 ep / 45s |
-| 几何解耦 v1（含多值区域） | 3.81° | 800 ep / 45s |
-| 几何解耦 v2（过滤 r<0） | **0.36°** | 500 ep / 9s |
-| 2DOF MLP（对比基准） | 0.51° | 500 ep / 11s |
+原始 XYZ→θ₁θ₂θ₃ 是过完备映射（多值区域约 20%）。通过以下方式解耦：
 
-重训命令：
+1. **θ₁ 解析求解**：`θ₁ = atan2(Y, X)`，完全精确
+2. **降维**：计算 `r_xy = √(X²+Y²)`, `z' = Z - L0`，将问题降为 2D 平面 IK
+3. **过滤 r < 0 区域**：数据生成时排除悬臂向后伸的多值区域（约占 20.7%）
 
-```bash
-uv run src/data_gen.py --arm 3dof       # 重新生成（含 r<0 过滤）
-uv run src/train.py --arm 3dof --model mlp  # 重训
-```
+| 版本 | 末端误差 | 备注 |
+|------|---------|------|
+| 旧方案（XYZ 直接输入） | 13.57° | 未解耦 |
+| 几何解耦 v1 | 3.81° | 含多值区域 |
+| 几何解耦 v2 | **0.36°** | 过滤 r<0，当前方案 |
 
----
-
-## 3-DOF 逆动力学补偿 Demo
-
-### 目标
-
-用神经网络学习 3-DOF 机械臂的逆动力学（含关节摩擦），作为前馈力矩补偿项，配合软刚度 PD 控制器实现精确跟踪。
-
-**控制律**：τ = τ_ff(q_des, dq_des) + KP·(q_des−q) + KD·(dq_des−dq)
-
-其中 τ_ff 由神经网络预测（MLP / ESN / LSTM / GRU），KP=8, KD=1.5（弱刚度，凸显前馈效果）。
-
-**控制目标**：`gen_excitation_traj(seed=999)` 生成的多频率正弦叠加关节角度轨迹 q_des(t)（与训练集不重叠的测试轨迹）。各控制方案独立闭环仿真，比较跟踪误差。
-
-### 完整流程
-
-```bash
-# 步骤 1：生成 30 条高刚度 PD 激励轨迹（KP=300，跟踪误差 < 0.1°）
-uv run src/data_gen_idyn.py --n_traj 30
-
-# 步骤 2：训练全部 4 种模型（约 2~3 min，RTX 4090）
-uv run src/train_idyn.py --model all
-
-# 也可单独训练某个模型
-uv run src/train_idyn.py --model gru
-
-# 步骤 3：可视化对比（默认测试轨迹幅值 2× 放大，展示更明显）
-MPLBACKEND=Agg uv run src/visualize_idyn.py --save           # 保存对比图
-uv run src/visualize_idyn.py --model gru                     # 只看 GRU vs 纯 PD
-uv run src/visualize_idyn.py --model gru lstm                # GRU + LSTM
-uv run src/visualize_idyn.py --model gru --mujoco            # GRU + MuJoCo 实时窗口
-
-# 调整测试轨迹参数
-uv run src/visualize_idyn.py --amp_scale 3.0 --duration 10.0 --save
-```
-
-### 神经网络架构
-
-| 模型 | 架构 | 特点 |
-|------|------|------|
-| **IDynMLP** | 4×Linear(256, Tanh) | 无记忆基线；只看当前帧 [q, dq] |
-| **IDynESN** | 固定储层(512) + MLP 读出 | 有时序记忆；训练极快（固定储层）|
-| **IDynLSTM** | 2 层 LSTM(256) + Linear | 全参数门控记忆；建模摩擦迟滞 |
-| **IDynGRU** | 2 层 GRU(256) + Linear | LSTM 轻量版；参数量约少 1/4 |
-
-输入：`[q1,q2,q3, dq1,dq2,dq3]`（6 维，含输入归一化）  
-输出：`[τ1, τ2, τ3]`（3 维，N·m）
-
-### 训练结果（RTX 4090，30 条轨迹，KP_DATA=300）
-
-| 方案 | 验证 MAE | 闭环跟踪误差（均值）| 各关节误差 [J1, J2, J3] |
-|------|---------|-------------------|------------------------|
-| 纯 PD（无前馈，基准） | — | 2.117° | [2.774, 1.877, 1.700]° |
-| PD + MLP 前馈 | 0.042 N·m | 0.160° | [0.358, 0.071, 0.051]° |
-| PD + ESN 前馈 | 0.054 N·m | 0.180° | [0.341, 0.086, 0.112]° |
-| PD + LSTM 前馈 | 0.043 N·m | 0.167° | [0.303, 0.094, 0.104]° |
-| **PD + GRU 前馈** | **0.014 N·m** | **0.042°** | **[0.043, 0.045, 0.038]°** |
-
-> GRU 前馈比纯 PD 误差降低 **50×**；各关节误差近乎均匀，无明显弱轴。
-
-### 关键参数（`data_gen_idyn.py`）
+### IDyn 关键参数
 
 | 参数 | 值 | 说明 |
 |------|----|------|
-| KP_DATA / KD_DATA | 300 / 5 | 数据生成用高刚度 PD（标签质量高，跟踪误差 0.09°）|
-| KP / KD | 8 / 1.5 | 可视化测试用软刚度 PD（凸显前馈效果）|
-| ctrlrange | ±50 N·m | 支持逆动力学前馈峰值幅值 |
-| JOINT_RANGES | ±0.8π, ±0.4π, ±0.6π | 关节1/2/3 活动范围（弧度）|
-| 标签 | `outputs`（高质量 PD 力矩，含 Coulomb 摩擦）| 训练目标 |
+| KP_DATA / KD_DATA | 300 / 5 | 数据生成高刚度（标签误差 < 0.1°）|
+| KP / KD（测试） | 8 / 1.5 | 软刚度 PD，凸显前馈效果 |
+| ctrlrange | ±50 N·m | 支持峰值前馈幅值 |
+| `<compiler angle="radian"/>` | MJCF 必需 | 否则关节范围默认解释为角度 |
+| Coulomb 摩擦 | frictionloss | 迟滞效应，GRU/LSTM 门控记忆可建模 |
+
+### 技术栈
+
+| 包 | 版本 | 用途 |
+|----|------|------|
+| Python | 3.10 | 语言版本 |
+| PyTorch | 2.11+ | GPU 训练 + `torch.compile` |
+| MuJoCo | 3.6+ | 物理仿真 + `launch_passive` 可视化 |
+| NumPy | 2.x | 运动学计算 |
+| Matplotlib | 3.8+ | 可视化对比图 |
+| SciPy | 1.13+ | 信号处理（激励轨迹） |
+| uv | 最新 | 包管理 / 运行（禁用 pip）|
 
 ---
 
-## 技术栈
+## 许可证
 
-- **Python** 3.10 · **uv** 包管理
-- **PyTorch** 2.x（CUDA，`torch.compile`，RTX 4090）
-- **MuJoCo** 3.x（`launch_passive` 交互可视化）
-- **NumPy**（运动学计算，CSV 导出）
+[MIT License](LICENSE) © 2026 Lijinzh
