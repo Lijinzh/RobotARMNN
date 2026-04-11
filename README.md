@@ -1,4 +1,4 @@
-# RobotARMNN — 机械臂神经网络运动学与逆动力学
+# 🤖 RobotARMNN — 机械臂神经网络运动学与逆动力学
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-orange)](https://pytorch.org/)
@@ -9,26 +9,37 @@
 
 | 模块 | 任务 | 网络 |
 |------|------|------|
-| **逆运动学 (IK)** | 目标末端坐标 → 关节角（2-DOF 平面臂 + 3-DOF 空间臂） | MLP、ESN |
-| **逆动力学 (IDyn)** | 期望轨迹 → 前馈力矩（3-DOF 带摩擦空间臂） | MLP、ESN、LSTM、GRU |
+| 🦾 **逆运动学 (IK)** | 目标末端坐标 → 关节角（2-DOF 平面臂 + 3-DOF 空间臂） | MLP、ESN |
+| ⚡ **逆动力学 (IDyn)** | 期望轨迹 → 前馈力矩（3-DOF 带摩擦空间臂） | MLP、ESN、LSTM、GRU |
+
+### 🖼️ 演示结果一览
+
+**逆运动学误差对比（2-DOF 平面臂）**
+![IK 2DOF 对比图](docs/ik_comparison_2dof.png)
+
+**逆运动学误差对比（3-DOF 空间臂）**
+![IK 3DOF 对比图](docs/ik_comparison_3dof.png)
+
+**逆动力学补偿效果对比（MLP / ESN / LSTM / GRU vs 纯 PD）**
+![IDyn 对比图](docs/idyn_comparison.png)
 
 ---
 
-## 目录
+## 📋 目录
 
-- [机械臂构型](#机械臂构型)
-- [项目结构](#项目结构)
-- [环境配置](#环境配置)
-- [快速开始](#快速开始)
-- [模块一：逆运动学 IK](#模块一逆运动学-ik)
-- [模块二：逆动力学 IDyn](#模块二逆动力学-idyn)
-- [训练结果](#训练结果)
-- [可视化操作说明](#可视化操作说明)
-- [技术细节](#技术细节)
+- [🦿 机械臂构型](#机械臂构型)
+- [📁 项目结构](#项目结构)
+- [⚙️ 环境配置](#环境配置)
+- [🚀 快速开始](#快速开始)
+- [🦾 模块一：逆运动学 IK](#模块一逆运动学-ik)
+- [⚡ 模块二：逆动力学 IDyn](#模块二逆动力学-idyn)
+- [📊 训练结果](#训练结果)
+- [🎮 可视化操作说明](#可视化操作说明)
+- [🔬 技术细节](#技术细节)
 
 ---
 
-## 机械臂构型
+## 🦿 机械臂构型
 
 ### 平面 2-DOF 臂
 
@@ -55,7 +66,7 @@ L0 = 0.20 m（底柱高度）  L1 = 0.15 m（大臂）  L2 = 0.12 m（小臂）
 
 ---
 
-## 项目结构
+## 📁 项目结构
 
 ```
 RobotARMNN/
@@ -114,7 +125,7 @@ RobotARMNN/
 
 ---
 
-## 环境配置
+## ⚙️ 环境配置
 
 ### 前置要求
 
@@ -193,7 +204,7 @@ uv run python -c "import torch, mujoco; print('torch:', torch.__version__); prin
 
 ---
 
-## 快速开始
+## 🚀 快速开始
 
 ```bash
 # 运动学解析演示（无需训练数据或模型）
@@ -215,9 +226,9 @@ uv run pytest tests/ -v
 
 ---
 
-## 模块一：逆运动学 IK
+## 🦾 模块一：逆运动学 IK
 
-### 数据生成
+### 📦 数据生成
 
 ```bash
 uv run src/data_gen.py --arm 2dof   # 平面臂（50 万点，约 10 s）
@@ -227,7 +238,7 @@ uv run src/data_gen.py --arm all    # 两种臂都生成
 
 生成文件保存到 `data/`（`.npz` 格式 + `.csv` 方便查看，已加入 `.gitignore`）。
 
-### 训练
+### 🏋️ 训练
 
 ```bash
 uv run src/train.py --arm 2dof --model mlp        # 2-DOF MLP  (~7 s / 500 ep)
@@ -239,7 +250,7 @@ uv run src/train.py --arm all --model all          # 全部训练
 
 训练完成后权重自动保存到 `checkpoints/ik_{arm}_{model}_best.pt`。
 
-### 可视化
+### 🎨 可视化
 
 **误差对比图（无需 MuJoCo 窗口）：**
 
@@ -277,7 +288,7 @@ uv run src/visualize_mujoco.py --arm 3dof --use_nn --model_type esn
 
 ---
 
-## 模块二：逆动力学 IDyn
+## ⚡ 模块二：逆动力学 IDyn
 
 **控制律**：τ = τ_ff(q_des, dq_des) + KP·(q_des−q) + KD·(dq_des−dq)
 
@@ -339,9 +350,9 @@ $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --save
 
 ---
 
-## 训练结果
+## 📊 训练结果
 
-### IK 末端位置误差（8000 随机测试点）
+### 🎯 IK 末端位置误差（8000 随机测试点）
 
 | 模型 | 2-DOF 均值 | 2-DOF p95 | 3-DOF 均值 | 3-DOF p95 |
 |------|-----------|-----------|-----------|-----------|
@@ -349,7 +360,7 @@ $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --save
 | MLP IK | 0.923 mm | 2.1 mm | 1.076 mm | 1.9 mm |
 | ESN IK | 6.586 mm | 13.1 mm | 4.863 mm | 9.8 mm |
 
-### IDyn 闭环跟踪误差（RTX 4090，30 条轨迹）
+### ⚡ IDyn 闭环跟踪误差（RTX 4090，30 条轨迹）
 
 | 方案 | 验证 MAE | 闭环误差（均值） | 各关节误差 [J1, J2, J3] |
 |------|---------|---------------|----------------------|
@@ -359,11 +370,11 @@ $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --save
 | PD + LSTM | 0.043 N·m | 0.167° | [0.303, 0.094, 0.104]° |
 | **PD + GRU** | **0.014 N·m** | **0.042°** | **[0.043, 0.045, 0.038]°** |
 
-> GRU 前馈比纯 PD 误差降低 **50×**，各关节误差均匀。
+> 🏆 GRU 前馈比纯 PD 误差降低 **50×**，各关节误差均匀。
 
 ---
 
-## 可视化操作说明
+## 🎮 可视化操作说明
 
 `visualize_mujoco.py` 和 `visualize_idyn.py`（`--mujoco` 模式）支持以下键盘操作：
 
@@ -381,7 +392,7 @@ $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --save
 
 ---
 
-## 技术细节
+## 🔬 技术细节
 
 ### 为什么选 sin/cos 输出编码？
 
@@ -426,6 +437,6 @@ $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --save
 
 ---
 
-## 许可证
+## 📄 许可证
 
 [MIT License](LICENSE) © 2026 Lijinzh
