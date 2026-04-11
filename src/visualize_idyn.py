@@ -45,6 +45,7 @@ import mujoco.viewer
 
 from src.data_gen_idyn import DT, JOINT_RANGES, KD, KP, XML_PATH, gen_excitation_traj
 from src.models import IDynESN, IDynGRU, IDynLSTM, IDynMLP
+from src.mpc_controller import LinearMPC, get_horizon_ref
 
 CKPT_MLP = os.path.join(os.path.dirname(__file__), "..", "checkpoints", "idyn_3dof_mlp_best.pt")
 CKPT_ESN = os.path.join(os.path.dirname(__file__), "..", "checkpoints", "idyn_3dof_esn_best.pt")
@@ -66,13 +67,18 @@ def run_closed_loop(
     gru_model: IDynGRU | None = None,
     xml_path: str = XML_PATH,
     show_viewer: bool = False,
+    use_mpc: bool = False,
+    use_mpc_gru: bool = False,
+    mpc_horizon: int = 10,
 ) -> dict:
     """
     运行闭环仿真，收集各方案的跟踪轨迹。
 
     控制律：
-        纯 PD：  τ = KP*(q_des-q) + KD*(dq_des-dq)
-        FF 方案: τ = τ_ff(q_des, dq_des) + KP*(q_des-q) + KD*(dq_des-dq)
+        纯 PD：     τ = KP*(q_des-q) + KD*(dq_des-dq)
+        MPC：       滚动优化（线性化动力学，预测域 mpc_horizon 步）
+        MPC+GRU：   MPC 基础上叠加 GRU 摩擦补偿前馈
+        FF 方案：   τ = τ_ff(q_des, dq_des) + KP*(q_des-q) + KD*(dq_des-dq)
         （全增益 PD + 叠加前馈：模型误差时 PD 仍能充分纠偏）
     """
     mjmodel = mujoco.MjModel.from_xml_path(xml_path)
@@ -90,6 +96,18 @@ def run_closed_loop(
     device = torch.device("cpu")
 
     configs = {"pd": make_data()}
+    # MPC 方案（纯 MPC，无 NN 前馈）
+    mpc_ctrl = None
+    mpc_gru_ctrl = None
+    if use_mpc:
+        configs["mpc"] = make_data()
+        mpc_ctrl = LinearMPC(n_joint=3, dt=DT, horizon=mpc_horizon)
+        mpc_ctrl.reset()
+    if use_mpc_gru and gru_model is not None:
+        configs["mpc_gru"] = make_data()
+        mpc_gru_ctrl = LinearMPC(n_joint=3, dt=DT, horizon=mpc_horizon)
+        mpc_gru_ctrl.reset()
+        H_mpc_gru = gru_model.init_hidden(batch_size=1).to(device)
     if mlp_model is not None:
         configs["mlp"] = make_data()
     if esn_model is not None:
@@ -110,7 +128,7 @@ def run_closed_loop(
         mujoco.mj_forward(mjmodel, d)
 
     logs = {k: np.zeros((T, 3), dtype=np.float32) for k in configs}
-    tau_logs = {k: np.zeros((T, 3), dtype=np.float32) for k in configs if k != "pd"}
+    tau_logs = {k: np.zeros((T, 3), dtype=np.float32) for k in configs if k not in ("pd", "mpc")}
 
     if show_viewer:
         # 创建独立的渲染专用 data，与仿真 data 完全隔离
@@ -135,6 +153,25 @@ def run_closed_loop(
 
             if key == "pd":
                 tau = KP * (q_des[t] - q_cur) + KD * (dq_des[t] - dq_cur)
+
+            elif key == "mpc":
+                # 纯 MPC：无 NN 前馈，仅靠优化求最优力矩
+                q_h, dq_h = get_horizon_ref(t, q_des, dq_des, mpc_ctrl.N)
+                mujoco.mj_forward(mjmodel, d)  # 确保 M, c 已更新
+                tau = mpc_ctrl.compute(mjmodel, d, q_cur, dq_cur, q_h, dq_h, j_ids)
+
+            elif key == "mpc_gru":
+                # MPC + GRU 前馈：在 MPC 基础上追加 GRU 学到的摩擦补偿
+                q_h, dq_h = get_horizon_ref(t, q_des, dq_des, mpc_gru_ctrl.N)
+                mujoco.mj_forward(mjmodel, d)
+                tau_mpc = mpc_gru_ctrl.compute(mjmodel, d, q_cur, dq_cur, q_h, dq_h, j_ids)
+                x_t = torch.tensor(np.concatenate([q_des[t], dq_des[t]])[None], dtype=torch.float32)
+                with torch.no_grad():
+                    tau_ff_t, H_mpc_gru = gru_model.forward_step(x_t, H_mpc_gru)
+                tau_ff = tau_ff_t.squeeze(0).numpy()
+                tau = tau_mpc + tau_ff
+                tau_logs[key][t] = tau_ff
+
             else:
                 x = torch.tensor(np.concatenate([q_des[t], dq_des[t]])[None], dtype=torch.float32)
                 tau_pd_corr = KP * (q_des[t] - q_cur) + KD * (dq_des[t] - dq_cur)
@@ -175,11 +212,14 @@ def run_closed_loop(
 
     return {
         "pd": logs["pd"],
+        "mpc": logs.get("mpc"),
+        "mpc_gru": logs.get("mpc_gru"),
         "mlp": logs.get("mlp"),
         "esn": logs.get("esn"),
         "lstm": logs.get("lstm"),
         "gru": logs.get("gru"),
         "q_des": q_des,
+        "tau_mpc_gru": tau_logs.get("mpc_gru", np.zeros((T, 3))),
         "tau_mlp": tau_logs.get("mlp", np.zeros((T, 3))),
         "tau_esn": tau_logs.get("esn", np.zeros((T, 3))),
         "tau_lstm": tau_logs.get("lstm", np.zeros((T, 3))),
@@ -204,9 +244,11 @@ def plot_comparison(result: dict, save_path: str | None = None) -> None:
     T = len(q_des)
     t_arr = np.arange(T) * DT
 
-    # 定义比较方案：key -> (误差数组, 颜色, 标签)
+    # 定义比较方案：key -> (颜色, 标签)
     SCHEMES = [
         ("pd", "#888888", "纯 PD（无补偿）"),
+        ("mpc", "#9C27B0", "MPC（线性化滚动优化）"),
+        ("mpc_gru", "#E91E63", "MPC + GRU 前馈"),
         ("mlp", "#2196F3", "PD + MLP 前馈"),
         ("esn", "#F44336", "PD + ESN 前馈（有记忆）"),
         ("lstm", "#4CAF50", "PD + LSTM 前馈（门控记忆）"),
@@ -219,7 +261,11 @@ def plot_comparison(result: dict, save_path: str | None = None) -> None:
             errs[key] = np.degrees(np.abs(result[key] - q_des))
 
     fig = plt.figure(figsize=(18, 10))
-    fig.suptitle("逆动力学补偿对比：PD / MLP / ESN / LSTM / GRU", fontsize=28, fontweight="bold")
+    fig.suptitle(
+        "控制方案对比：PD / MPC / MPC+GRU / PD+MLP / PD+ESN / LSTM / GRU",
+        fontsize=22,
+        fontweight="bold",
+    )
     gs = gridspec.GridSpec(2, 2, hspace=0.42, wspace=0.35)
 
     # ---- (a) 平均跟踪误差时域曲线 ----
@@ -271,6 +317,7 @@ def plot_comparison(result: dict, save_path: str | None = None) -> None:
     t_slice = slice(T - t_show, T)
     t_arr_s = t_arr[t_slice]
     tau_keys = [
+        ("mpc_gru", "#E91E63", "MPC+GRU 前馈分量"),
         ("mlp", "#2196F3", "MLP 前馈"),
         ("esn", "#F44336", "ESN 前馈"),
         ("lstm", "#4CAF50", "LSTM 前馈"),
@@ -291,8 +338,9 @@ def plot_comparison(result: dict, save_path: str | None = None) -> None:
     # ---- (d) 迟滞相图：dq vs τ_ff（LSTM/GRU 应展现更清晰的迟滞环） ----
     ax3 = fig.add_subplot(gs[1, 1])
     step = 2
-    # 画 MLP/ESN 低对比度，突出 LSTM/GRU
+    # 画 MLP/ESN 低对比度，突出 GRU 系列
     for key, color, label in [
+        ("mpc_gru", "#E91E63", "MPC+GRU 摩擦分量"),
         ("mlp", "#AAAAFF", "MLP"),
         ("esn", "#FFAAAA", "ESN"),
         ("lstm", "#4CAF50", "LSTM"),
@@ -324,11 +372,13 @@ def plot_comparison(result: dict, save_path: str | None = None) -> None:
 
 def print_summary(result: dict) -> None:
     q_des = result["q_des"]
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)
     print("  定量对比（平均跟踪误差，度；低→好）")
-    print("=" * 60)
+    print("=" * 70)
     for key, label in [
         ("pd", "纯 PD（无补偿）"),
+        ("mpc", "MPC（线性化滚动优化）"),
+        ("mpc_gru", "MPC + GRU 前馈"),
         ("mlp", "PD + MLP 前馈（无记忆）"),
         ("esn", "PD + ESN 前馈（固定储层）"),
         ("lstm", "PD + LSTM 前馈（门控记忆）"),
@@ -341,7 +391,7 @@ def print_summary(result: dict) -> None:
                 f"  {label:<30} 总均值={err_deg:.3f}°  "
                 f"[{per_joint[0]:.3f}, {per_joint[1]:.3f}, {per_joint[2]:.3f}]°"
             )
-    print("=" * 60)
+    print("=" * 70)
 
 
 # =====================================================================
@@ -350,7 +400,12 @@ def print_summary(result: dict) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="逆动力学补偿效果对比可视化")
-    parser.add_argument("--save", action="store_true", help="保存图片到 export/")
+    parser.add_argument(
+        "--no-save",
+        dest="no_save",
+        action="store_true",
+        help="禁用自动保存（默认自动保存到 export/）",
+    )
     parser.add_argument("--mujoco", action="store_true", help="同时显示 MuJoCo 实时窗口")
     parser.add_argument(
         "--traj_seed", type=int, default=999, help="测试轨迹随机种子（与训练数据不同）"
@@ -365,12 +420,22 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model",
         nargs="+",
-        choices=["mlp", "esn", "lstm", "gru"],
-        default=["mlp", "esn", "lstm", "gru"],
-        help="指定参与对比的模型（默认全部），例：--model gru lstm",
+        choices=["mlp", "esn", "lstm", "gru", "mpc", "mpc_gru"],
+        default=["mlp", "esn", "lstm", "gru", "mpc", "mpc_gru"],
+        help="指定参与对比的方案（默认全部），例：--model gru mpc mpc_gru",
+    )
+    parser.add_argument(
+        "--mpc_horizon",
+        type=int,
+        default=10,
+        help="MPC 预测域步数（默认 10）",
     )
     args = parser.parse_args()
     enabled_models = set(args.model)
+
+    # ---- 判断是否启用 MPC ----
+    use_mpc = "mpc" in enabled_models
+    use_mpc_gru = "mpc_gru" in enabled_models
 
     # ---- 加载模型 ----
     mlp_model, esn_model, lstm_model, gru_model = None, None, None, None
@@ -381,7 +446,9 @@ if __name__ == "__main__":
         (CKPT_LSTM, "LSTM", lambda p: IDynLSTM.load(p)),
         (CKPT_GRU, "GRU", lambda p: IDynGRU.load(p)),
     ]:
-        if model_name.lower() not in enabled_models:
+        # mpc_gru 需要 gru 权重
+        need_gru_for_mpc = (model_name == "GRU") and use_mpc_gru
+        if model_name.lower() not in enabled_models and not need_gru_for_mpc:
             continue  # 用户未指定，跳过
         if os.path.exists(ckpt_path):
             m = load_fn(ckpt_path)
@@ -398,7 +465,13 @@ if __name__ == "__main__":
         else:
             print(f"[vis] {model_name} 检查点不存在（{ckpt_path}），跳过")
 
-    if all(m is None for m in [mlp_model, esn_model, lstm_model, gru_model]):
+    # MPC 不依赖 NN，需单独统计
+    has_any = (
+        use_mpc
+        or use_mpc_gru
+        or any(m is not None for m in [mlp_model, esn_model, lstm_model, gru_model])
+    )
+    if not has_any:
         print("\n[vis] 请先训练模型：uv run src/train_idyn.py --model all")
         sys.exit(1)
 
@@ -413,8 +486,11 @@ if __name__ == "__main__":
     )
 
     # ---- 闭环仿真 ----
-    n_models = sum(m is not None for m in [mlp_model, esn_model, lstm_model, gru_model])
-    print(f"[vis] 运行闭环仿真（共 {1 + n_models} 方案，每方案独立仿真）...")
+    n_nn = sum(m is not None for m in [mlp_model, esn_model, lstm_model, gru_model])
+    n_mpc = int(use_mpc) + int(use_mpc_gru)
+    print(f"[vis] 运行闭环仿真（共 {1 + n_nn + n_mpc} 方案，每方案独立仿真）...")
+    if use_mpc or use_mpc_gru:
+        print(f"[vis] MPC 预测域 = {args.mpc_horizon} 步（{args.mpc_horizon * DT * 1000:.1f} ms）")
     result = run_closed_loop(
         q_des,
         dq_des,
@@ -423,10 +499,16 @@ if __name__ == "__main__":
         lstm_model=lstm_model,
         gru_model=gru_model,
         show_viewer=args.mujoco,
+        use_mpc=use_mpc,
+        use_mpc_gru=use_mpc_gru,
+        mpc_horizon=args.mpc_horizon,
     )
 
     # ---- 结果输出 ----
     print_summary(result)
 
-    save_path = os.path.join(EXPORT_DIR, "idyn_comparison.png") if args.save else None
+    # 默认自动保存，除非显式传入 --no-save
+    save_path = None if args.no_save else os.path.join(EXPORT_DIR, "idyn_comparison.png")
+    if save_path:
+        print(f"[vis] 图片将保存至: {save_path}")
     plot_comparison(result, save_path=save_path)

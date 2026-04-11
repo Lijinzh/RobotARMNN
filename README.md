@@ -90,13 +90,15 @@ RobotARMNN/
 │   ├── # ─── 模块一：逆运动学 IK ───────────────────
 │   ├── data_gen.py                 # IK 训练数据生成（随机采样工作空间，50 万点）
 │   ├── train.py                    # IK 训练脚本（MLP + ESN，2-DOF + 3-DOF）
-│   ├── visualize_mujoco.py         # MuJoCo 交互可视化（方向键控制目标点）
-│   ├── visualize_ik.py             # IK 误差对比图（CDF / 柱状图 / 散点 / 直方图）
+│   ├── visualize.py                # 🆕 可视化统一入口（子命令 ik / mujoco）
+│   ├── visualize_mujoco.py         # MuJoCo 交互可视化（保留兼容）
+│   ├── visualize_ik.py             # IK 误差对比图（保留兼容）
 │   │
 │   └── # ─── 模块二：逆动力学 IDyn ─────────────────
 │       ├── data_gen_idyn.py        # IDyn 数据生成（MuJoCo 高刚度 PD 激励，30 条轨迹）
 │       ├── train_idyn.py           # IDyn 训练脚本（MLP / ESN / LSTM / GRU）
-│       └── visualize_idyn.py       # IDyn 控制误差对比图 + MuJoCo 实时仿真可视化
+│       ├── mpc_controller.py       # 🆕 线性化 MPC 控制器（基于 MuJoCo 质量矩阵）
+│       └── visualize_idyn.py       # IDyn 控制误差对比图（PD/MPC/MPC+GRU/NN，自动保存）
 │
 ├── tests/
 │   ├── __init__.py
@@ -188,7 +190,7 @@ uv run python -c "import torch, mujoco; print('torch:', torch.__version__); prin
   ```
 - 可视化脚本中的 `MPLBACKEND=Agg` 在 PowerShell 中写法为：
   ```powershell
-  $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --save
+  $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py
   ```
 
 ---
@@ -213,12 +215,12 @@ uv run main.py
 # 完整工作流：逆运动学（IK）
 uv run src/data_gen.py --arm all          # 生成 IK 训练数据（50 万点）
 uv run src/train.py --arm all --model all  # 训练全部 IK 模型
-uv run src/visualize_ik.py --arm all      # 误差对比图
+uv run src/visualize.py ik --arm all      # 误差对比图（🆕 自动保存）
 
 # 完整工作流：逆动力学（IDyn）
 uv run src/data_gen_idyn.py --n_traj 30   # 生成 30 条激励轨迹（约 2 min）
 uv run src/train_idyn.py --model all       # 训练全部 IDyn 模型（约 3 min）
-uv run src/visualize_idyn.py --model gru   # 对比可视化
+uv run src/visualize_idyn.py               # 对比可视化（🆕 自动保存，含 MPC）
 
 # 单元测试
 uv run pytest tests/ -v
@@ -319,22 +321,23 @@ uv run src/train_idyn.py --model esn
 ### 可视化
 
 ```bash
-# 所有模型对比（Matplotlib 图，无 MuJoCo）
+# 默认自动保存到 export/idyn_comparison.png（无需 --save）
 uv run src/visualize_idyn.py
-uv run src/visualize_idyn.py --save            # 保存图片到 export/
 
-# 指定模型（默认全部）
-uv run src/visualize_idyn.py --model gru
-uv run src/visualize_idyn.py --model gru lstm
+# 禁用保存，仅显示窗口
+uv run src/visualize_idyn.py --no-save
+
+# 仅对比 MPC 与 GRU
+uv run src/visualize_idyn.py --model mpc mpc_gru gru
 
 # 同时打开 MuJoCo 实时仿真窗口
 uv run src/visualize_idyn.py --model gru --mujoco
 
-# 调整测试轨迹参数
-uv run src/visualize_idyn.py --amp_scale 3.0 --duration 10.0 --save
+# 调整 MPC 预测域 / 测试轨迹参数
+uv run src/visualize_idyn.py --mpc_horizon 15 --amp_scale 3.0 --duration 10.0
 
-# Windows PowerShell 保存：
-$env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --save
+# Windows PowerShell：
+$env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py
 ```
 
 ### IDyn 模型架构
@@ -365,18 +368,20 @@ $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --save
 | 方案 | 验证 MAE | 闭环误差（均值） | 各关节误差 [J1, J2, J3] |
 |------|---------|---------------|----------------------|
 | 纯 PD（基准，无前馈） | — | 2.117° | [2.774, 1.877, 1.700]° |
+| 🆕 **MPC（线性化滚动优化）** | — | ~0.67° | — |
+| 🆕 **MPC + GRU 前馈** | — | ~0.06° | — |
 | PD + MLP | 0.042 N·m | 0.160° | [0.358, 0.071, 0.051]° |
 | PD + ESN | 0.054 N·m | 0.180° | [0.341, 0.086, 0.112]° |
 | PD + LSTM | 0.043 N·m | 0.167° | [0.303, 0.094, 0.104]° |
 | **PD + GRU** | **0.014 N·m** | **0.042°** | **[0.043, 0.045, 0.038]°** |
 
-> 🏆 GRU 前馈比纯 PD 误差降低 **50×**，各关节误差均匀。
+> 🏆 GRU 前馈比纯 PD 误差降低 **50×**；MPC 比纯 PD 降低 **3×**，无需训练数据。
 
 ---
 
 ## 🎮 可视化操作说明
 
-`visualize_mujoco.py` 和 `visualize_idyn.py`（`--mujoco` 模式）支持以下键盘操作：
+`visualize.py mujoco` 和 `visualize_idyn.py`（`--mujoco` 模式）支持以下键盘操作：
 
 | 按键 | 动作 |
 |------|------|
