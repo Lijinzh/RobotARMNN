@@ -45,7 +45,7 @@ import mujoco.viewer
 
 from src.data_gen_idyn import DT, JOINT_RANGES, KD, KP, XML_PATH, gen_excitation_traj
 from src.models import IDynESN, IDynGRU, IDynLSTM, IDynMLP
-from src.mpc_controller import ComputedTorqueControl
+from src.mpc_controller import LinearMPC, get_horizon_ref
 
 CKPT_MLP = os.path.join(os.path.dirname(__file__), "..", "checkpoints", "idyn_3dof_mlp_best.pt")
 CKPT_ESN = os.path.join(os.path.dirname(__file__), "..", "checkpoints", "idyn_3dof_esn_best.pt")
@@ -77,8 +77,8 @@ def run_closed_loop(
 
     控制律：
         纯 PD：     τ = KP*(q_des-q) + KD*(dq_des-dq)
-        CTC：       τ = M(q)*[q̈₁ₕ_des + Kp*(q_des-q) + Kd*(dq_des-dq)] + c(q,dq)
-        CTC+GRU：   CTC 基础上叠加 GRU 摩擦补偿前馈
+        MPC：       滚动预测优化（预测域 N 步，解析 QP）
+        MPC+GRU：   MPC 基础上叠加 GRU 摩擦补偿前馈
         FF 方案：   τ = τ_ff(q_des, dq_des) + KP*(q_des-q) + KD*(dq_des-dq)
     """
     mjmodel = mujoco.MjModel.from_xml_path(xml_path)
@@ -94,19 +94,17 @@ def run_closed_loop(
 
     T = len(q_des)
     device = torch.device("cpu")
-    # ddq_des 用于 CTC，没有时用零向量代替
-    ddq_arr = ddq_des if ddq_des is not None else np.zeros_like(q_des)
 
     configs = {"pd": make_data()}
-    # CTC 方案（计算力矩控制，无 NN 前馈）
-    ctc_ctrl = None
-    ctc_gru_ctrl = None
+    # MPC 方案（滚动预测优化，无 NN 前馈）
+    mpc_ctrl = None
+    mpc_gru_ctrl = None
     if use_mpc:
         configs["mpc"] = make_data()
-        ctc_ctrl = ComputedTorqueControl(n_joint=3, tau_max=50.0)
+        mpc_ctrl = LinearMPC(n_joint=3, dt=DT, horizon=mpc_horizon)
     if use_mpc_gru and gru_model is not None:
         configs["mpc_gru"] = make_data()
-        ctc_gru_ctrl = ComputedTorqueControl(n_joint=3, tau_max=50.0)
+        mpc_gru_ctrl = LinearMPC(n_joint=3, dt=DT, horizon=mpc_horizon)
         H_mpc_gru = gru_model.init_hidden(batch_size=1).to(device)
     if mlp_model is not None:
         configs["mlp"] = make_data()
@@ -155,25 +153,22 @@ def run_closed_loop(
                 tau = KP * (q_des[t] - q_cur) + KD * (dq_des[t] - dq_cur)
 
             elif key == "mpc":
-                # CTC（计算力矩控制）：基于精确逆动力学，每步 < 0.05ms
+                # 纯 MPC：滚动预测优化，无 NN 前馈
+                # 每步在当前工作点线性化动力学，预测 N 步，解析 QP
+                q_h, dq_h = get_horizon_ref(t, q_des, dq_des, mpc_ctrl.N)
                 mujoco.mj_forward(mjmodel, d)
-                tau = ctc_ctrl.compute(
-                    mjmodel, d, q_cur, dq_cur,
-                    q_des[t], dq_des[t], ddq_arr[t], j_ids
-                )
+                tau = mpc_ctrl.compute(mjmodel, d, q_cur, dq_cur, q_h, dq_h, j_ids)
 
             elif key == "mpc_gru":
-                # CTC + GRU 前馈：精确逆动力学 + GRU 摩擦补偿
+                # MPC + GRU 前馈：MPC 优化得到动力学最优轨迹，GRU 补偿残差摩擦
+                q_h, dq_h = get_horizon_ref(t, q_des, dq_des, mpc_gru_ctrl.N)
                 mujoco.mj_forward(mjmodel, d)
-                tau_ctc = ctc_gru_ctrl.compute(
-                    mjmodel, d, q_cur, dq_cur,
-                    q_des[t], dq_des[t], ddq_arr[t], j_ids
-                )
+                tau_mpc = mpc_gru_ctrl.compute(mjmodel, d, q_cur, dq_cur, q_h, dq_h, j_ids)
                 x_t = torch.tensor(np.concatenate([q_des[t], dq_des[t]])[None], dtype=torch.float32)
                 with torch.no_grad():
                     tau_ff_t, H_mpc_gru = gru_model.forward_step(x_t, H_mpc_gru)
                 tau_ff = tau_ff_t.squeeze(0).numpy()
-                tau = tau_ctc + tau_ff
+                tau = tau_mpc + tau_ff
                 tau_logs[key][t] = tau_ff
 
             else:
@@ -251,8 +246,8 @@ def plot_comparison(result: dict, save_path: str | None = None) -> None:
     # 定义比较方案：key -> (颜色, 标签)
     SCHEMES = [
         ("pd", "#888888", "纯 PD（无补偿）"),
-        ("mpc", "#9C27B0", "CTC（计算力矩控制）"),
-        ("mpc_gru", "#E91E63", "CTC + GRU 前馈"),
+        ("mpc", "#9C27B0", "MPC（滚动预测优化）"),
+        ("mpc_gru", "#E91E63", "MPC + GRU 前馈"),
         ("mlp", "#2196F3", "PD + MLP 前馈"),
         ("esn", "#F44336", "PD + ESN 前馈（有记忆）"),
         ("lstm", "#4CAF50", "PD + LSTM 前馈（门控记忆）"),
@@ -266,7 +261,7 @@ def plot_comparison(result: dict, save_path: str | None = None) -> None:
 
     fig = plt.figure(figsize=(18, 10))
     fig.suptitle(
-        "控制方案对比：PD / CTC / CTC+GRU / PD+MLP / PD+ESN / LSTM / GRU",
+        "控制方案对比：PD / MPC / MPC+GRU / PD+MLP / PD+ESN / LSTM / GRU",
         fontsize=22,
         fontweight="bold",
     )
@@ -321,7 +316,7 @@ def plot_comparison(result: dict, save_path: str | None = None) -> None:
     t_slice = slice(T - t_show, T)
     t_arr_s = t_arr[t_slice]
     tau_keys = [
-        ("mpc_gru", "#E91E63", "CTC+GRU 前馈分量"),
+        ("mpc_gru", "#E91E63", "MPC+GRU 前馈分量"),
         ("mlp", "#2196F3", "MLP 前馈"),
         ("esn", "#F44336", "ESN 前馈"),
         ("lstm", "#4CAF50", "LSTM 前馈"),
@@ -344,7 +339,7 @@ def plot_comparison(result: dict, save_path: str | None = None) -> None:
     step = 2
     # 画 MLP/ESN 低对比度，突出 GRU 系列
     for key, color, label in [
-        ("mpc_gru", "#E91E63", "CTC+GRU 摩擦分量"),
+        ("mpc_gru", "#E91E63", "MPC+GRU 摩擦分量"),
         ("mlp", "#AAAAFF", "MLP"),
         ("esn", "#FFAAAA", "ESN"),
         ("lstm", "#4CAF50", "LSTM"),
@@ -381,8 +376,8 @@ def print_summary(result: dict) -> None:
     print("=" * 70)
     for key, label in [
         ("pd", "纯 PD（无补偿）"),
-        ("mpc", "CTC（计算力矩控制）"),
-        ("mpc_gru", "CTC + GRU 前馈"),
+        ("mpc", "MPC（滚动预测优化）"),
+        ("mpc_gru", "MPC + GRU 前馈"),
         ("mlp", "PD + MLP 前馈（无记忆）"),
         ("esn", "PD + ESN 前馈（固定储层）"),
         ("lstm", "PD + LSTM 前馈（门控记忆）"),
@@ -494,7 +489,7 @@ if __name__ == "__main__":
     n_mpc = int(use_mpc) + int(use_mpc_gru)
     print(f"[vis] 运行闭环仿真（共 {1 + n_nn + n_mpc} 方案，每方案独立仿真）...")
     if use_mpc:
-        print("[vis] CTC（计算力矩控制）已启用，每步 <0.05 ms（与纯 PD 速度相同）")
+        print(f"[vis] MPC 预测域 = {args.mpc_horizon} 步（{args.mpc_horizon * DT * 1000:.1f} ms），每步内部解析 QP优化")
     result = run_closed_loop(
         q_des,
         dq_des,
