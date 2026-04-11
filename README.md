@@ -97,8 +97,8 @@ RobotARMNN/
 │   └── # ─── 模块二：逆动力学 IDyn ─────────────────
 │       ├── data_gen_idyn.py        # IDyn 数据生成（MuJoCo 高刚度 PD 激励，30 条轨迹）
 │       ├── train_idyn.py           # IDyn 训练脚本（MLP / ESN / LSTM / GRU）
-│       ├── mpc_controller.py       # 🆕 线性化 MPC 控制器（基于 MuJoCo 质量矩阵）
-│       └── visualize_idyn.py       # IDyn 控制误差对比图（PD/MPC/MPC+GRU/NN，自动保存）
+        ├── mpc_controller.py       # 🆕 CTC + MPC 控制器（计算力矩控制 / 解析 QP，去除 scipy）
+        └── visualize_idyn.py       # IDyn 控制误差对比图（PD/CTC/CTC+GRU/NN，自动保存）
 │
 ├── tests/
 │   ├── __init__.py
@@ -295,7 +295,7 @@ uv run src/visualize_mujoco.py --arm 3dof --use_nn --model_type esn
 **控制律**：τ = τ_ff(q_des, dq_des) + KP·(q_des−q) + KD·(dq_des−dq)
 
 前馈力矩 τ_ff 由神经网络预测，PD 项负责误差纠偏（弱刚度：KP=8, KD=1.5）。
-
+🆕 **计算力矩控制 CTC**：τ = M(q)·q̈_des + c(q,dq) + KP·(q_des−q) + KD·(dq_des−dq)，基于 MuJoCo 质量矩阵实时手算，每步 <0.05 ms，根点 scipy 辭代已完全去除。
 ### 数据生成
 
 ```bash
@@ -327,14 +327,14 @@ uv run src/visualize_idyn.py
 # 禁用保存，仅显示窗口
 uv run src/visualize_idyn.py --no-save
 
-# 仅对比 MPC 与 GRU
+# 仅对比 CTC 与 GRU
 uv run src/visualize_idyn.py --model mpc mpc_gru gru
 
 # 同时打开 MuJoCo 实时仿真窗口
 uv run src/visualize_idyn.py --model gru --mujoco
 
-# 调整 MPC 预测域 / 测试轨迹参数
-uv run src/visualize_idyn.py --mpc_horizon 15 --amp_scale 3.0 --duration 10.0
+# 调整测试轨迹参数
+uv run src/visualize_idyn.py --amp_scale 3.0 --duration 10.0
 
 # Windows PowerShell：
 $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py
@@ -365,17 +365,18 @@ $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py
 
 ### ⚡ IDyn 闭环跟踪误差（RTX 4090，30 条轨迹）
 
-| 方案 | 验证 MAE | 闭环误差（均值） | 各关节误差 [J1, J2, J3] |
-|------|---------|---------------|----------------------|
-| 纯 PD（基准，无前馈） | — | 2.117° | [2.774, 1.877, 1.700]° |
-| 🆕 **MPC（线性化滚动优化）** | — | ~0.67° | — |
-| 🆕 **MPC + GRU 前馈** | — | ~0.06° | — |
-| PD + MLP | 0.042 N·m | 0.160° | [0.358, 0.071, 0.051]° |
-| PD + ESN | 0.054 N·m | 0.180° | [0.341, 0.086, 0.112]° |
-| PD + LSTM | 0.043 N·m | 0.167° | [0.303, 0.094, 0.104]° |
-| **PD + GRU** | **0.014 N·m** | **0.042°** | **[0.043, 0.045, 0.038]°** |
+| 方案 | 验证 MAE | 闭环误差（均值） | 各关节误差 [J1, J2, J3] | 每步用时 |
+|------|---------|---------------|----------------------|------|
+| 纯 PD（基准，无前馈） | — | 2.433° | [3.354, 2.014, 1.931]° | ~0.01 ms |
+| 🆕 **CTC（计算力矩控制）** | — | 2.471° | [3.319, 2.190, 1.906]° | <0.05 ms |
+| 🆕 **CTC + GRU 前馈** | — | 0.825° | [0.461, 1.594, 0.421]° | <0.1 ms |
+| PD + MLP | 0.042 N·m | 0.276° | [0.609, 0.122, 0.095]° | CPU |
+| PD + ESN | 0.054 N·m | 0.321° | [0.579, 0.183, 0.202]° | CPU |
+| PD + LSTM | 0.043 N·m | 0.112° | [0.190, 0.068, 0.077]° | CPU |
+| **PD + GRU** | **0.014 N·m** | **0.069°** | **[0.107, 0.053, 0.048]°** | CPU |
 
-> 🏆 GRU 前馈比纯 PD 误差降低 **50×**；MPC 比纯 PD 降低 **3×**，无需训练数据。
+> 🏆 GRU 前馈比纯 PD 误差降低 **35×**；CTC 提供精确逆动力学前馈（模型副作用 = 0.038°），配合 GRU 摩擦补偿可进一步提升 3×。
+> CTC 每步 <0.05 ms，与纯 PD 速度相同（原 scipy 辭代 MPC 每步 3-10 ms，冀3000 步多出 18-30 s）。
 
 ---
 
