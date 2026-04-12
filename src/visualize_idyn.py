@@ -489,7 +489,9 @@ if __name__ == "__main__":
     n_mpc = int(use_mpc) + int(use_mpc_gru)
     print(f"[vis] 运行闭环仿真（共 {1 + n_nn + n_mpc} 方案，每方案独立仿真）...")
     if use_mpc:
-        print(f"[vis] MPC 预测域 = {args.mpc_horizon} 步（{args.mpc_horizon * DT * 1000:.1f} ms），每步内部解析 QP优化")
+        print(
+            f"[vis] MPC 预测域 = {args.mpc_horizon} 步（{args.mpc_horizon * DT * 1000:.1f} ms），每步内部解析 QP优化"
+        )
     result = run_closed_loop(
         q_des,
         dq_des,

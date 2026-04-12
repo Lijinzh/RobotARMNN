@@ -328,16 +328,28 @@ def plot_ik_comparison(
         if is_3dof:
             feat_2d = results["mlp"]["targets_2d"]
             sc = ax2.scatter(
-                feat_2d[valid, 0], feat_2d[valid, 1],
-                c=clamp_errs, cmap="RdYlGn_r", s=4, alpha=0.6, vmin=0, vmax=15,
+                feat_2d[valid, 0],
+                feat_2d[valid, 1],
+                c=clamp_errs,
+                cmap="RdYlGn_r",
+                s=4,
+                alpha=0.6,
+                vmin=0,
+                vmax=15,
             )
             ax2.set_xlabel("水平半径 r_xy (m)", fontsize=15)
             ax2.set_ylabel("相对高度 z' (m)", fontsize=15)
             ax2.set_title("(c) MLP 误差 — 竖直平面分布（3DOF）", fontsize=18)
         else:
             sc = ax2.scatter(
-                targets[valid, 0], targets[valid, 1],
-                c=clamp_errs, cmap="RdYlGn_r", s=4, alpha=0.6, vmin=0, vmax=15,
+                targets[valid, 0],
+                targets[valid, 1],
+                c=clamp_errs,
+                cmap="RdYlGn_r",
+                s=4,
+                alpha=0.6,
+                vmin=0,
+                vmax=15,
             )
             ax2.set_xlabel("X (m)", fontsize=15)
             ax2.set_ylabel("Y (m)", fontsize=15)
@@ -345,8 +357,15 @@ def plot_ik_comparison(
             ax2.set_aspect("equal")
         plt.colorbar(sc, ax=ax2, label="误差 (mm, 截断至 15mm)")
     else:
-        ax2.text(0.5, 0.5, "无 MLP 检查点", ha="center", va="center",
-                 transform=ax2.transAxes, fontsize=18)
+        ax2.text(
+            0.5,
+            0.5,
+            "无 MLP 检查点",
+            ha="center",
+            va="center",
+            transform=ax2.transAxes,
+            fontsize=18,
+        )
         ax2.set_title("(c) MLP 工作空间误差分布", fontsize=18)
 
     # ---- (d) 误差直方图 ----
@@ -360,8 +379,7 @@ def plot_ik_comparison(
         if len(errs_v) == 0:
             continue
         if errs_v.max() < 1e-6:
-            ax3.axvline(1e-3, color=color, linewidth=2, linestyle="--",
-                        label=f"{label}（误差≈0）")
+            ax3.axvline(1e-3, color=color, linewidth=2, linestyle="--", label=f"{label}（误差≈0）")
             continue
         ax3.hist(errs_v, bins=bins, color=color, alpha=0.5, label=label, density=True)
     ax3.set_xscale("log")
@@ -398,8 +416,9 @@ def print_summary_ik(arm_label: str, results: dict) -> None:
         if len(errs_v) == 0:
             print(f"  {label:<22}  （无数据）")
             continue
-        print(fmt.format(label, np.mean(errs_v), np.median(errs_v),
-                         np.percentile(errs_v, 95), reach))
+        print(
+            fmt.format(label, np.mean(errs_v), np.median(errs_v), np.percentile(errs_v, 95), reach)
+        )
     print("=" * 65)
 
 
@@ -429,11 +448,13 @@ def run_ik(args) -> None:
         cfg2 = PlanarArmConfig()
 
         mlp2 = _load_ik_checkpoint(
-            os.path.join(CKPT_DIR, "ik_2dof_mlp_best.pt"), IKNN_MLP,
+            os.path.join(CKPT_DIR, "ik_2dof_mlp_best.pt"),
+            IKNN_MLP,
             {"input_dim": 2, "hidden_dim": 256, "output_dim": 4},
         )
         esn2 = _load_ik_checkpoint(
-            os.path.join(CKPT_DIR, "ik_2dof_esn_best.pt"), IKNN_ESN,
+            os.path.join(CKPT_DIR, "ik_2dof_esn_best.pt"),
+            IKNN_ESN,
             {"input_dim": 2, "output_dim": 4},
         )
         for name, model in [("MLP", mlp2), ("ESN", esn2)]:
@@ -447,10 +468,7 @@ def run_ik(args) -> None:
         results_2d = solve_2dof_all(targets_2d, cfg2, mlp2, esn2)
         print_summary_ik("2DOF", results_2d)
 
-        save_path = (
-            None if args.no_save
-            else os.path.join(EXPORT_DIR, "ik_comparison_2dof.png")
-        )
+        save_path = None if args.no_save else os.path.join(EXPORT_DIR, "ik_comparison_2dof.png")
         plot_ik_comparison("2DOF", results_2d, targets_2d, save_path=save_path)
 
     # ---- 3-DOF ----
@@ -459,11 +477,13 @@ def run_ik(args) -> None:
         cfg3 = Arm3DOFConfig()
 
         mlp3 = _load_ik_checkpoint(
-            os.path.join(CKPT_DIR, "ik_3dof_mlp_best.pt"), IKNN_MLP,
+            os.path.join(CKPT_DIR, "ik_3dof_mlp_best.pt"),
+            IKNN_MLP,
             {"input_dim": 2, "hidden_dim": 384, "output_dim": 4, "n_layers": 5},
         )
         esn3 = _load_ik_checkpoint(
-            os.path.join(CKPT_DIR, "ik_3dof_esn_best.pt"), IKNN_ESN,
+            os.path.join(CKPT_DIR, "ik_3dof_esn_best.pt"),
+            IKNN_ESN,
             {"input_dim": 2, "output_dim": 4},
         )
         for name, model in [("MLP", mlp3), ("ESN", esn3)]:
@@ -477,10 +497,7 @@ def run_ik(args) -> None:
         results_3d = solve_3dof_all(targets_3d, cfg3, mlp3, esn3)
         print_summary_ik("3DOF", results_3d)
 
-        save_path = (
-            None if args.no_save
-            else os.path.join(EXPORT_DIR, "ik_comparison_3dof.png")
-        )
+        save_path = None if args.no_save else os.path.join(EXPORT_DIR, "ik_comparison_3dof.png")
         plot_ik_comparison("3DOF", results_3d, targets_3d, save_path=save_path)
 
 
@@ -490,13 +507,13 @@ def run_ik(args) -> None:
 
 # GLFW 按键码
 _GLFW_RIGHT = 262
-_GLFW_LEFT  = 263
-_GLFW_DOWN  = 264
-_GLFW_UP    = 265
-_GLFW_KP8   = 328
-_GLFW_KP2   = 322
+_GLFW_LEFT = 263
+_GLFW_DOWN = 264
+_GLFW_UP = 265
+_GLFW_KP8 = 328
+_GLFW_KP2 = 322
 _HELD_TIMEOUT = 0.12  # 长按超时（秒）
-_STEP = 0.01           # 目标点移动步长（米）
+_STEP = 0.01  # 目标点移动步长（米）
 
 # 全局控制状态
 _target = np.zeros(3, dtype=np.float64)
@@ -519,7 +536,7 @@ def _make_key_callback(demo_config: dict):
             _target[:] = demo_config["init_target"]
             _demo_running = False
             _held_keys.clear()
-        elif keycode == 32:   # SPACE
+        elif keycode == 32:  # SPACE
             _demo_running = not _demo_running
         elif key == "P":
             _print_info = True
@@ -545,9 +562,9 @@ def _clamp_target_3dof(target: np.ndarray, cfg: Arm3DOFConfig) -> np.ndarray:
     xy = t[:2]
     r_xy = float(np.linalg.norm(xy))
     z_prime = t[2] - cfg.L0
-    r_max_at_z = max(0.02, np.sqrt(max(0, cfg.reach_max ** 2 - z_prime ** 2)) - 0.01)
+    r_max_at_z = max(0.02, np.sqrt(max(0, cfg.reach_max**2 - z_prime**2)) - 0.01)
     if r_xy > r_max_at_z:
-        xy = (np.array([r_max_at_z, 0.0]) if r_xy < 1e-9 else xy / r_xy * r_max_at_z)
+        xy = np.array([r_max_at_z, 0.0]) if r_xy < 1e-9 else xy / r_xy * r_max_at_z
     t[0], t[1] = xy[0], xy[1]
     return t
 
@@ -556,6 +573,7 @@ def _load_ik_model_mujoco(model_type: str, nn_ckpt: str, arm_name: str):
     """加载 IK 模型（MLP 或 ESN）用于 MuJoCo 实时控制。"""
     try:
         import torch
+
         if not os.path.exists(nn_ckpt):
             return None, None
         ckpt = torch.load(nn_ckpt, map_location="cpu", weights_only=False)
@@ -563,7 +581,9 @@ def _load_ik_model_mujoco(model_type: str, nn_ckpt: str, arm_name: str):
             if isinstance(ckpt, dict) and "config" in ckpt:
                 model = IKNN_MLP(**ckpt["config"])
                 model.load_state_dict(ckpt["state_dict"])
-                info = f"[{arm_name.upper()}] MLP IK (hidden={ckpt['config'].get('hidden_dim',256)})"
+                info = (
+                    f"[{arm_name.upper()}] MLP IK (hidden={ckpt['config'].get('hidden_dim', 256)})"
+                )
             else:
                 model = IKNN_MLP(input_dim=2, hidden_dim=256, output_dim=4)
                 model.load_state_dict(ckpt)
@@ -584,9 +604,13 @@ def _load_ik_model_mujoco(model_type: str, nn_ckpt: str, arm_name: str):
         return None, None
 
 
-def _run_2dof_viewer(xml_path: str, cfg: PlanarArmConfig,
-                     use_nn: bool = False, nn_ckpt: str | None = None,
-                     model_type: str = "mlp") -> None:
+def _run_2dof_viewer(
+    xml_path: str,
+    cfg: PlanarArmConfig,
+    use_nn: bool = False,
+    nn_ckpt: str | None = None,
+    model_type: str = "mlp",
+) -> None:
     """启动 2-DOF 平面臂 MuJoCo 交互可视化。"""
     global _target, _demo_running, _demo_t, _print_info
     import mujoco
@@ -598,9 +622,11 @@ def _run_2dof_viewer(xml_path: str, cfg: PlanarArmConfig,
 
     init_target = np.array([0.20, 0.0, cfg.arm_height])
     _target = init_target.copy()
-    demo_config = {"init_target": init_target.copy(),
-                   "center": np.array([0.0, 0.0, cfg.arm_height]),
-                   "radius": 0.20}
+    demo_config = {
+        "init_target": init_target.copy(),
+        "center": np.array([0.0, 0.0, cfg.arm_height]),
+        "radius": 0.20,
+    }
 
     target_body_id = mujoco.mj_name2id(mjmodel, mujoco.mjtObj.mjOBJ_BODY, "target")
     target_mocap_id = mjmodel.body_mocapid[target_body_id]
@@ -621,8 +647,9 @@ def _run_2dof_viewer(xml_path: str, cfg: PlanarArmConfig,
     print("\n=== 2-DOF 平面臂 MuJoCo 可视化 ===")
     print("  ↑/↓: +Y/-Y   ←/→: -X/+X   R: 复位   SPACE: 演示   P: 打印状态\n")
 
-    with mujoco.viewer.launch_passive(mjmodel, data,
-                                      key_callback=_make_key_callback(demo_config)) as viewer:
+    with mujoco.viewer.launch_passive(
+        mjmodel, data, key_callback=_make_key_callback(demo_config)
+    ) as viewer:
         viewer.cam.azimuth = 90
         viewer.cam.elevation = -70
         viewer.cam.distance = 0.8
@@ -632,10 +659,14 @@ def _run_2dof_viewer(xml_path: str, cfg: PlanarArmConfig,
             t_loop = time.time()
             if not _demo_running:
                 now = time.time()
-                if now - _held_keys.get(_GLFW_UP, 0) < _HELD_TIMEOUT:    _target[1] += _STEP
-                if now - _held_keys.get(_GLFW_DOWN, 0) < _HELD_TIMEOUT:  _target[1] -= _STEP
-                if now - _held_keys.get(_GLFW_LEFT, 0) < _HELD_TIMEOUT:  _target[0] -= _STEP
-                if now - _held_keys.get(_GLFW_RIGHT, 0) < _HELD_TIMEOUT: _target[0] += _STEP
+                if now - _held_keys.get(_GLFW_UP, 0) < _HELD_TIMEOUT:
+                    _target[1] += _STEP
+                if now - _held_keys.get(_GLFW_DOWN, 0) < _HELD_TIMEOUT:
+                    _target[1] -= _STEP
+                if now - _held_keys.get(_GLFW_LEFT, 0) < _HELD_TIMEOUT:
+                    _target[0] -= _STEP
+                if now - _held_keys.get(_GLFW_RIGHT, 0) < _HELD_TIMEOUT:
+                    _target[0] += _STEP
             if _demo_running:
                 _demo_t += 0.02
                 r_wave = demo_config["radius"] * (0.6 + 0.4 * np.cos(3 * _demo_t))
@@ -649,8 +680,10 @@ def _run_2dof_viewer(xml_path: str, cfg: PlanarArmConfig,
                 inp = torch.tensor(_target[:2], dtype=torch.float32).unsqueeze(0)
                 with torch.no_grad():
                     sincos = nn_model(inp).squeeze(0).numpy()
-                angles = (float(np.arctan2(sincos[0], sincos[1])),
-                          float(np.arctan2(sincos[2], sincos[3])))
+                angles = (
+                    float(np.arctan2(sincos[0], sincos[1])),
+                    float(np.arctan2(sincos[2], sincos[3])),
+                )
             else:
                 angles = inverse_kinematics_planar(_target[:2], cfg, elbow_up=True)
 
@@ -661,10 +694,12 @@ def _run_2dof_viewer(xml_path: str, cfg: PlanarArmConfig,
 
             if _print_info:
                 ee = data.sensor("ee_pos").data.copy()
-                print(f"  目标: ({_target[0]:.3f},{_target[1]:.3f})  "
-                      f"θ1={np.degrees(data.qpos[j1_id]):.1f}°  "
-                      f"θ2={np.degrees(data.qpos[j2_id]):.1f}°  "
-                      f"末端: ({ee[0]:.3f},{ee[1]:.3f})")
+                print(
+                    f"  目标: ({_target[0]:.3f},{_target[1]:.3f})  "
+                    f"θ1={np.degrees(data.qpos[j1_id]):.1f}°  "
+                    f"θ2={np.degrees(data.qpos[j2_id]):.1f}°  "
+                    f"末端: ({ee[0]:.3f},{ee[1]:.3f})"
+                )
                 _print_info = False  # noqa: F811
 
             viewer.sync()
@@ -673,9 +708,13 @@ def _run_2dof_viewer(xml_path: str, cfg: PlanarArmConfig,
                 time.sleep(1 / 60 - elapsed)
 
 
-def _run_3dof_viewer(xml_path: str, cfg: Arm3DOFConfig,
-                     use_nn: bool = False, nn_ckpt: str | None = None,
-                     model_type: str = "mlp") -> None:
+def _run_3dof_viewer(
+    xml_path: str,
+    cfg: Arm3DOFConfig,
+    use_nn: bool = False,
+    nn_ckpt: str | None = None,
+    model_type: str = "mlp",
+) -> None:
     """启动 3-DOF 空间臂 MuJoCo 交互可视化。"""
     global _target, _demo_running, _demo_t, _print_info
     import mujoco
@@ -687,9 +726,11 @@ def _run_3dof_viewer(xml_path: str, cfg: Arm3DOFConfig,
 
     init_target = np.array([0.20, 0.10, cfg.L0 + 0.15])
     _target = init_target.copy()
-    demo_config = {"init_target": init_target.copy(),
-                   "center": np.array([0.0, 0.0, cfg.L0 + 0.10]),
-                   "radius": 0.18}
+    demo_config = {
+        "init_target": init_target.copy(),
+        "center": np.array([0.0, 0.0, cfg.L0 + 0.10]),
+        "radius": 0.18,
+    }
 
     target_body_id = mujoco.mj_name2id(mjmodel, mujoco.mjtObj.mjOBJ_BODY, "target")
     target_mocap_id = mjmodel.body_mocapid[target_body_id]
@@ -711,8 +752,9 @@ def _run_3dof_viewer(xml_path: str, cfg: Arm3DOFConfig,
     print("\n=== 3-DOF 空间臂 MuJoCo 可视化 ===")
     print("  ↑/↓: +Y/-Y   ←/→: -X/+X   KP8/KP2: +Z/-Z   R: 复位   SPACE: 演示   P: 打印\n")
 
-    with mujoco.viewer.launch_passive(mjmodel, data,
-                                      key_callback=_make_key_callback(demo_config)) as viewer:
+    with mujoco.viewer.launch_passive(
+        mjmodel, data, key_callback=_make_key_callback(demo_config)
+    ) as viewer:
         viewer.cam.azimuth = 45
         viewer.cam.elevation = -30
         viewer.cam.distance = 1.0
@@ -722,12 +764,18 @@ def _run_3dof_viewer(xml_path: str, cfg: Arm3DOFConfig,
             t_loop = time.time()
             if not _demo_running:
                 now = time.time()
-                if now - _held_keys.get(_GLFW_UP, 0) < _HELD_TIMEOUT:    _target[1] += _STEP
-                if now - _held_keys.get(_GLFW_DOWN, 0) < _HELD_TIMEOUT:  _target[1] -= _STEP
-                if now - _held_keys.get(_GLFW_LEFT, 0) < _HELD_TIMEOUT:  _target[0] -= _STEP
-                if now - _held_keys.get(_GLFW_RIGHT, 0) < _HELD_TIMEOUT: _target[0] += _STEP
-                if now - _held_keys.get(_GLFW_KP8, 0) < _HELD_TIMEOUT:   _target[2] += _STEP
-                if now - _held_keys.get(_GLFW_KP2, 0) < _HELD_TIMEOUT:   _target[2] -= _STEP
+                if now - _held_keys.get(_GLFW_UP, 0) < _HELD_TIMEOUT:
+                    _target[1] += _STEP
+                if now - _held_keys.get(_GLFW_DOWN, 0) < _HELD_TIMEOUT:
+                    _target[1] -= _STEP
+                if now - _held_keys.get(_GLFW_LEFT, 0) < _HELD_TIMEOUT:
+                    _target[0] -= _STEP
+                if now - _held_keys.get(_GLFW_RIGHT, 0) < _HELD_TIMEOUT:
+                    _target[0] += _STEP
+                if now - _held_keys.get(_GLFW_KP8, 0) < _HELD_TIMEOUT:
+                    _target[2] += _STEP
+                if now - _held_keys.get(_GLFW_KP2, 0) < _HELD_TIMEOUT:
+                    _target[2] -= _STEP
             if _demo_running:
                 _demo_t += 0.02
                 r = demo_config["radius"]
@@ -745,9 +793,11 @@ def _run_3dof_viewer(xml_path: str, cfg: Arm3DOFConfig,
                 inp = torch.tensor([[r_xy, z_prime]], dtype=torch.float32)
                 with torch.no_grad():
                     sincos = nn_model(inp).squeeze(0).numpy()
-                angles = (theta1,
-                          float(np.arctan2(sincos[0], sincos[1])),
-                          float(np.arctan2(sincos[2], sincos[3])))
+                angles = (
+                    theta1,
+                    float(np.arctan2(sincos[0], sincos[1])),
+                    float(np.arctan2(sincos[2], sincos[3])),
+                )
             else:
                 angles = inverse_kinematics_3dof(_target, cfg, elbow_up=True)
 
@@ -759,11 +809,13 @@ def _run_3dof_viewer(xml_path: str, cfg: Arm3DOFConfig,
 
             if _print_info:
                 ee = data.sensor("ee_pos").data.copy()
-                print(f"  目标: ({_target[0]:.3f},{_target[1]:.3f},{_target[2]:.3f})  "
-                      f"θ=[{np.degrees(data.qpos[j1_id]):.1f}°,"
-                      f"{np.degrees(data.qpos[j2_id]):.1f}°,"
-                      f"{np.degrees(data.qpos[j3_id]):.1f}°]  "
-                      f"末端: ({ee[0]:.3f},{ee[1]:.3f},{ee[2]:.3f})")
+                print(
+                    f"  目标: ({_target[0]:.3f},{_target[1]:.3f},{_target[2]:.3f})  "
+                    f"θ=[{np.degrees(data.qpos[j1_id]):.1f}°,"
+                    f"{np.degrees(data.qpos[j2_id]):.1f}°,"
+                    f"{np.degrees(data.qpos[j3_id]):.1f}°]  "
+                    f"末端: ({ee[0]:.3f},{ee[1]:.3f},{ee[2]:.3f})"
+                )
                 _print_info = False  # noqa: F811
 
             viewer.sync()
@@ -781,16 +833,22 @@ def run_mujoco(args) -> None:
         xml_path = os.path.join(src_dir, "arm_2dof.xml")
         cfg = PlanarArmConfig()
         ckpt_default = os.path.join(ckpt_dir, f"ik_2dof_{args.model_type}_best.pt")
-        nn_ckpt = args.ckpt if args.ckpt else (ckpt_default if os.path.exists(ckpt_default) else None)
-        _run_2dof_viewer(xml_path, cfg, use_nn=args.use_nn, nn_ckpt=nn_ckpt,
-                         model_type=args.model_type)
+        nn_ckpt = (
+            args.ckpt if args.ckpt else (ckpt_default if os.path.exists(ckpt_default) else None)
+        )
+        _run_2dof_viewer(
+            xml_path, cfg, use_nn=args.use_nn, nn_ckpt=nn_ckpt, model_type=args.model_type
+        )
     else:
         xml_path = os.path.join(src_dir, "arm_3dof.xml")
         cfg = Arm3DOFConfig()
         ckpt_default = os.path.join(ckpt_dir, f"ik_3dof_{args.model_type}_best.pt")
-        nn_ckpt = args.ckpt if args.ckpt else (ckpt_default if os.path.exists(ckpt_default) else None)
-        _run_3dof_viewer(xml_path, cfg, use_nn=args.use_nn, nn_ckpt=nn_ckpt,
-                         model_type=args.model_type)
+        nn_ckpt = (
+            args.ckpt if args.ckpt else (ckpt_default if os.path.exists(ckpt_default) else None)
+        )
+        _run_3dof_viewer(
+            xml_path, cfg, use_nn=args.use_nn, nn_ckpt=nn_ckpt, model_type=args.model_type
+        )
 
 
 # =====================================================================
@@ -807,22 +865,24 @@ if __name__ == "__main__":
 
     # ------- ik 子命令 -------
     p_ik = subparsers.add_parser("ik", help="IK 误差评估（离线，自动保存图片）")
-    p_ik.add_argument("--arm", default="all", choices=["2dof", "3dof", "all"],
-                      help="机械臂类型（默认 all）")
-    p_ik.add_argument("--n_test", type=int, default=8000,
-                      help="随机测试目标点数（默认 8000）")
+    p_ik.add_argument(
+        "--arm", default="all", choices=["2dof", "3dof", "all"], help="机械臂类型（默认 all）"
+    )
+    p_ik.add_argument("--n_test", type=int, default=8000, help="随机测试目标点数（默认 8000）")
     p_ik.add_argument("--seed", type=int, default=7777, help="采样随机种子")
-    p_ik.add_argument("--no-save", dest="no_save", action="store_true",
-                      help="禁用自动保存（仅显示窗口）")
+    p_ik.add_argument(
+        "--no-save", dest="no_save", action="store_true", help="禁用自动保存（仅显示窗口）"
+    )
 
     # ------- mujoco 子命令 -------
     p_mj = subparsers.add_parser("mujoco", help="MuJoCo 实时交互可视化")
-    p_mj.add_argument("--arm", default="2dof", choices=["2dof", "3dof"],
-                      help="机械臂类型（默认 2dof）")
-    p_mj.add_argument("--use_nn", action="store_true",
-                      help="使用 NN 计算 IK（需先训练 train.py）")
-    p_mj.add_argument("--model_type", default="mlp", choices=["mlp", "esn"],
-                      help="NN 模型类型（默认 mlp）")
+    p_mj.add_argument(
+        "--arm", default="2dof", choices=["2dof", "3dof"], help="机械臂类型（默认 2dof）"
+    )
+    p_mj.add_argument("--use_nn", action="store_true", help="使用 NN 计算 IK（需先训练 train.py）")
+    p_mj.add_argument(
+        "--model_type", default="mlp", choices=["mlp", "esn"], help="NN 模型类型（默认 mlp）"
+    )
     p_mj.add_argument("--ckpt", default=None, help="手动指定权重路径（可选）")
 
     args = parser.parse_args()

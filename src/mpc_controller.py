@@ -36,7 +36,6 @@ import mujoco
 import numpy as np
 from scipy.linalg import block_diag
 
-
 # ======================================================================
 # 公共辅助：从 MuJoCo 读取质量矩阵和偏置力
 # ======================================================================
@@ -187,8 +186,8 @@ class LinearMPC:
         W = np.zeros((N * two_n, N * two_n))
         for k in range(N):
             base = k * two_n
-            W[base: base + n, base: base + n] = Qf if k == N - 1 else Q
-            W[base + n: base + two_n, base + n: base + two_n] = Qv
+            W[base : base + n, base : base + n] = Qf if k == N - 1 else Q
+            W[base + n : base + two_n, base + n : base + two_n] = Qv
         self._W = W
         self._R_bar = block_diag(*[self.R for _ in range(N)])
 
@@ -246,21 +245,19 @@ class LinearMPC:
 
         f_acc = np.zeros(two_n)
         for k in range(N):
-            A_bar[k * two_n:(k + 1) * two_n, :] = Phi_pows[k + 1]
+            A_bar[k * two_n : (k + 1) * two_n, :] = Phi_pows[k + 1]
             f_acc = Phi @ f_acc + d_bias
-            f_bar[k * two_n:(k + 1) * two_n] = f_acc
+            f_bar[k * two_n : (k + 1) * two_n] = f_acc
             # B_bar 行 k：Phi^(k-j)*Gamma，对所有 j <= k
             for j in range(k + 1):
-                B_bar[k * two_n:(k + 1) * two_n, j * n:(j + 1) * n] = (
-                    Phi_pows[k - j] @ Gamma
-                )
+                B_bar[k * two_n : (k + 1) * two_n, j * n : (j + 1) * n] = Phi_pows[k - j] @ Gamma
 
         # ---- 5. 参考状态序列 X_ref ----
         X_ref = np.zeros(N * two_n)
         for k in range(N):
             ref_idx = min(k + 1, len(q_des_N) - 1)
-            X_ref[k * two_n: k * two_n + n] = q_des_N[ref_idx]
-            X_ref[k * two_n + n: (k + 1) * two_n] = dq_des_N[ref_idx]
+            X_ref[k * two_n : k * two_n + n] = q_des_N[ref_idx]
+            X_ref[k * two_n + n : (k + 1) * two_n] = dq_des_N[ref_idx]
 
         # ---- 6. 构造 QP 矩阵，解析求解 ----
         x0 = np.concatenate([q_cur, dq_cur])

@@ -328,18 +328,27 @@ uv run src/visualize_idyn.py
 # 禁用保存，仅显示窗口
 uv run src/visualize_idyn.py --no-save
 
-# 仅对比 MPC 与 GRU
-uv run src/visualize_idyn.py --model mpc mpc_gru gru
+# 🆕 重点：MPC 滚动预测控制对比（同时打开 MuJoCo 观测仿真过程）
+uv run src/visualize_idyn.py --model mpc mpc_gru gru --mujoco
 
-# 同时打开 MuJoCo 实时仿真窗口
-uv run src/visualize_idyn.py --model gru --mujoco
+# 仅 MPC，不加 GRU 前馈，观察纯预测控制效果
+uv run src/visualize_idyn.py --model mpc --mujoco
 
-# 调整测试轨迹参数
-uv run src/visualize_idyn.py --amp_scale 3.0 --duration 10.0 --mujoco
+# 调大预测域步数（默认 N=10，越大预测越准，计算也略慢）
+uv run src/visualize_idyn.py --model mpc mpc_gru --mpc_horizon 20 --mujoco
 
-# Windows PowerShell：
-$env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py
+# 调整测试轨迹幅值 / 时长
+uv run src/visualize_idyn.py --model mpc mpc_gru gru --amp_scale 3.0 --duration 10.0 --mujoco
+
+# 全方案对比（所有 NN + MPC，不打开 MuJoCo，自动保存图片）
+uv run src/visualize_idyn.py
+
+# Windows PowerShell（无 MuJoCo 窗口，仅保存图片）：
+$env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --model mpc mpc_gru gru
 ```
+
+> 💡 **`--mujoco` 说明**：打开 MuJoCo 被动查看器，实时显示跟踪效果最好方案的仿真动画。  
+> 可用鼠标拖动旋转/平移视角，滚轮缩放。按 `Ctrl+C` 或关闭窗口退出。
 
 ### IDyn 模型架构
 
