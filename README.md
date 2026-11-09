@@ -338,6 +338,53 @@ uv run src/data_gen_idyn.py --n_traj 60   # 更多轨迹，精度更高
 uv run pytest tests/test_idyn_labels.py -v
 ```
 
+### 多项式与摩擦特征回归
+
+```bash
+uv run src/validate_poly_friction.py
+# 可选：--data 数据路径 --output-dir 结果目录
+```
+
+该脚本固定使用版本 2 的 `inputs → outputs_bg`：轨迹 0–7 训练、8–9 测试，
+每条轨迹从索引 0 每隔 25 点直接抽样，从 500 Hz 降为 20 Hz，共 1280/320 点；
+保留启动段，无滤波、无插值。其余轨迹不参与。先用训练轨迹 0–5 拟合、6–7 验证，
+选择阶数和摩擦参数，再用全部 8 条训练轨迹重拟合。标准化仅使用当次训练数据，
+采用含截距和全部交叉项的无正则普通最小二乘。
+
+方向特征为三个关节的 `sign(dq)`；低速饱和特征为三个关节的
+`clip(dq/v0, -1, 1)`，其中 `dq` 使用原始 rad/s 单位，不先标准化。
+三个关节共用一个 `v0`，从 0.002–0.2 rad/s 的 31 个对数间隔候选中，
+仅按内部验证 NRMSE 选择。它是对当前仿真摩擦的回归近似，不是通用精确摩擦公式。
+
+2026-11-09，seed=42 修正数据上的离线结果：
+
+| 模型 | 内部验证 NRMSE | 测试 NRMSE | 每关节系数 |
+|------|----------------|------------|------------|
+| 一阶多项式 | 0.554547 | 0.476943 | 7 |
+| 三阶多项式 | 0.549483 | 0.576879 | 84 |
+| 三阶＋方向特征 | 0.129050 | 0.094332 | 87 |
+| 一阶＋低速饱和 | 0.010226 | 0.006329 | 10 |
+| 二阶＋低速饱和（内部验证选中） | 0.010082 | 0.006014 | 31 |
+| 三阶＋低速饱和 | 0.010145 | 0.007054 | 87 |
+
+三种低速饱和模型均由内部验证选中 `v0=0.0233183 rad/s`。
+整体 NRMSE 定义为 `sqrt(sum_j MSE_j / sum_j Var(y_j))`，各关节分别中心化，`ddof=0`。
+这里只评估两条固定测试轨迹上的仿真力矩；结果不代表器件精度、闭环跟踪精度或跨工况泛化。
+
+结果默认保存到 `export/idyn_poly_friction/`：`report.json` 包含完整选参记录、
+各关节 NRMSE/RMSE、低速区误差和数据 SHA-256；`selected_model.npz` 保存选中模型的
+标准化、单项式指数和系数；`test_predictions.npz` 保存测试预测和原始样本索引。
+模型已重新加载并核对预测。可以用 `src.validate_poly_friction.predict_model` 推理：
+
+```python
+import numpy as np
+from src.validate_poly_friction import predict_model
+
+with np.load("export/idyn_poly_friction/selected_model.npz") as model:
+    # x 的形状为 (N, 6)，列顺序为 q_des[3]、dq_des[3]，单位为 rad、rad/s。
+    tau_bg = predict_model(model, x)
+```
+
 ### 训练
 
 ```bash
