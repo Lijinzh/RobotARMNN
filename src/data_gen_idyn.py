@@ -6,11 +6,13 @@
     让 PD 控制器跟踪轨迹，记录：
         q(t)     — 实际关节角（磁编码器真值）
         dq(t)    — 实际关节速度
-        tau(t)   — PD 控制器输出（MuJoCo data.ctrl），即"所需总力矩"
+        tau(t)   — PD 控制器命令，作为闭环示教标签 outputs
 
     学习目标：
-        x(t) = [q(t), dq(t)]  →  τ(t)
-        NN 需要学会：当前位置/速度 + 历史（ESN）→ 完整控制量（含摩擦补偿）
+        inputs = [q_des, dq_des] → outputs 或 outputs_bg
+        inputs_full = [q_des, dq_des, ddq_des] → outputs_inv
+        outputs_inv 是指定加速度的逆动力学；outputs_bg 是零加速度补偿。
+        outputs 是闭环 PD 示教命令，不是精确逆动力学真值。
 
 激励轨迹设计：
     傅里叶级数叠加（3-5个不同频率），覆盖关节空间
@@ -52,7 +54,7 @@ JOINT_RANGES = [
 ]
 
 # ---- PD 控制增益 ----
-# 数据生成用高刚度（确保跟踪误差 <0.5°，标签包含精确摩擦/重力/阻尼）
+# 数据生成用高刚度 PD；实际跟踪误差取决于轨迹，不能视为精确逆动力学真值。
 # KD 选取：临界阻尼 KD = 2*sqrt(KP*J)，J≈0.02 → KD≈5，避免速度项削波
 KP_DATA = np.array([300.0, 300.0, 200.0])  # 数据生成 PD 位置增益
 KD_DATA = np.array([5.0, 5.0, 4.0])  # 数据生成 PD 速度增益（临界阻尼）
@@ -85,6 +87,7 @@ def gen_excitation_traj(
         t_arr : (T,) 时间数组
         q_des : (T, 3) 期望关节角
         dq_des: (T, 3) 期望关节速度（解析微分）
+        ddq_des: (T, 3) 期望关节加速度（解析二阶导）
     """
     if rng is None:
         rng = np.random.default_rng()
@@ -112,10 +115,16 @@ def gen_excitation_traj(
             dq_des[:, j] += amps[i] * ω[i] * np.cos(ω[i] * t_arr + phases[i])
             ddq_des[:, j] -= amps[i] * ω[i] ** 2 * np.sin(ω[i] * t_arr + phases[i])  # 解析二阶导
 
-        # 加上中心偏置
+        # 整条轨迹同步缩放，避免仅裁剪位置后破坏解析导数的一致性。
+        peak = np.max(np.abs(q_des[:, j]))
+        half_range = (q_max - q_min) / 2
+        if peak > half_range:
+            scale = half_range / peak
+            q_des[:, j] *= scale
+            dq_des[:, j] *= scale
+            ddq_des[:, j] *= scale
+
         q_des[:, j] += q_center
-        # 裁剪到关节范围内
-        q_des[:, j] = np.clip(q_des[:, j], q_min, q_max)
 
     return t_arr, q_des, dq_des, ddq_des.astype(np.float32)
 
@@ -140,7 +149,7 @@ def simulate_trajectory(
         dict 包含：
             q    : (T, 3) 实际关节角
             dq   : (T, 3) 实际关节速度
-            tau  : (T, 3) PD 控制器输出（力矩真值）
+            tau  : (T, 3) PD 控制器命令（可能受执行器限幅影响）
             q_err: (T, 3) 跟踪误差
     """
     mjmodel = mujoco.MjModel.from_xml_path(xml_path)
@@ -197,22 +206,27 @@ def compute_inverse_dynamics_labels(
     """
     计算两种逆动力学力矩标签。
 
-    给定期望轨迹 (q_des, dq_des, ddq_des)：
-        tau_full = M(q)*ddq + qfrc_bias(q,dq) + qfrc_passive(q,dq)   ← 完整逆动力学
-        tau_bg   = qfrc_bias(q,dq) + qfrc_passive(q,dq)              ← 偏置+重力+摩擦（无惯性项）
+    给定期望轨迹 (q_des, dq_des, ddq_des)，使用 MuJoCo 的逆动力学：
+        tau_full = mj_inverse(q_des, dq_des, ddq_des).qfrc_inverse
+        tau_bg   = mj_inverse(q_des, dq_des, 0).qfrc_inverse
+
+    力平衡为 tau = M*ddq + bias - passive - constraint。
+    阻尼属于 passive；Coulomb frictionloss 由约束求解器处理。
+    当前 XML 的电机 gear=1，且没有额外外力，因此结果直接对应电机力矩。
 
     说明：
-        - tau_full 需要 ddq_des 才能学习（输入需为 9D），超出 6D 模型能力范围
-        - tau_bg   仅依赖 (q_des, dq_des) → 6D 模型**可以完整学习**
-          其中摩擦项（Coulomb frictionloss）有速度方向迟滞 → ESN/LSTM/GRU 有优势
+        - tau_full 的完整状态输入需为 [q_des, dq_des, ddq_des]（9D）。
+        - tau_bg 表示当前位置、速度下保持零加速度所需的力矩，输入为 6D。
+        - 约束力可能随指定加速度变化，不能一般化为 tau_full = M*ddq + tau_bg。
+        - 不在设置 qacc 后调用 mj_forward，避免期望加速度被前向动力学覆盖。
 
     参数:
         q_des   : (T, 3) 期望关节角
         dq_des  : (T, 3) 期望关节速度
         ddq_des : (T, 3) 期望关节加速度（gen_excitation_traj 解析计算）
     返回:
-        tau_full : (T, 3) 完整逆动力学力矩（含惯性项，学习上限高）
-        tau_bg   : (T, 3) 偏置+重力+摩擦（无惯性，6D 输入可学，推荐训练目标）
+        tau_full : (T, 3) 指定加速度的逆动力学力矩
+        tau_bg   : (T, 3) 零加速度补偿力矩
     """
     mjmodel = mujoco.MjModel.from_xml_path(xml_path)
     mjdata = mujoco.MjData(mjmodel)
@@ -220,32 +234,25 @@ def compute_inverse_dynamics_labels(
     j_ids = [
         mujoco.mj_name2id(mjmodel, mujoco.mjtObj.mjOBJ_JOINT, f"joint{i + 1}") for i in range(3)
     ]
-    nv = mjmodel.nv
+    qpos_ids = mjmodel.jnt_qposadr[j_ids]
+    dof_ids = mjmodel.jnt_dofadr[j_ids]
     T = len(q_des)
     tau_full = np.zeros((T, 3), dtype=np.float32)
     tau_bg = np.zeros((T, 3), dtype=np.float32)
-    M_mat = np.zeros((nv, nv), dtype=np.float64)
 
     for t in range(T):
-        # 设置期望位置/速度
-        for i, jid in enumerate(j_ids):
-            mjdata.qpos[jid] = q_des[t, i]
-            mjdata.qvel[jid] = dq_des[t, i]
-            mjdata.qacc[jid] = ddq_des[t, i]
-        # mj_forward 更新运动学（qM, qfrc_bias, qfrc_passive）
-        mujoco.mj_forward(mjmodel, mjdata)
+        mjdata.qpos[qpos_ids] = q_des[t]
+        mjdata.qvel[dof_ids] = dq_des[t]
 
-        # 偏置+重力+摩擦（无惯性项），6D 输入可精确学习
-        bg_t = mjdata.qfrc_bias + mjdata.qfrc_passive
-        for i, jid in enumerate(j_ids):
-            tau_bg[t, i] = bg_t[jid]
+        # 指定加速度，由逆动力学同时处理惯性、偏置、被动力和约束力。
+        mjdata.qacc[dof_ids] = ddq_des[t]
+        mujoco.mj_inverse(mjmodel, mjdata)
+        tau_full[t] = mjdata.qfrc_inverse[dof_ids]
 
-        # 完整逆动力学（含惯性项 M*ddq）
-        mujoco.mj_fullM(mjmodel, M_mat, mjdata.qM)
-        ddq_t = np.array([mjdata.qacc[jid] for jid in j_ids])
-        full_t = M_mat @ ddq_t + bg_t
-        for i, jid in enumerate(j_ids):
-            tau_full[t, i] = full_t[jid]
+        # 在相同位置、速度下单独求零加速度补偿，包含 frictionloss。
+        mjdata.qacc[dof_ids] = 0.0
+        mujoco.mj_inverse(mjmodel, mjdata)
+        tau_bg[t] = mjdata.qfrc_inverse[dof_ids]
 
     return tau_full, tau_bg
 
@@ -260,11 +267,16 @@ def gen_idyn_dataset(
     """
     批量生成逆动力学数据集，保存为 .npz。
 
-    文件结构（每条轨迹独立存储，训练时自行切片）：
-        inputs  : (N_total, 6)  — [q1,q2,q3, dq1,dq2,dq3] 当前帧
-        outputs : (N_total, 3)  — [τ1, τ2, τ3] 所需力矩
-        traj_ids: (N_total,)    — 所属轨迹编号（用于 ESN 按序列训练时不跨段）
-        q_des_all: (N_total, 3) — 期望角度（用于评估跟踪误差）
+    文件结构（不同轨迹以 traj_id 区分，训练/测试应按轨迹划分）：
+        inputs     : (N_total, 6) — [q_des, dq_des]
+        inputs_full: (N_total, 9) — [q_des, dq_des, ddq_des]
+        outputs    : (N_total, 3) — PD 示教命令
+        outputs_inv: (N_total, 3) — 指定加速度的逆动力学力矩
+        outputs_bg : (N_total, 3) — 零加速度补偿力矩
+        ddq_des    : (N_total, 3) — 期望加速度
+        label_version: 2         — 修正加速度覆盖、阻尼符号和摩擦遗漏
+
+    输出路径为 NPZ_PATH；重新生成前应先归档旧数据。
     """
     os.makedirs(DATA_DIR, exist_ok=True)
     print(f"[data_gen_idyn] 生成 {n_traj} 条激励轨迹，每条 {duration}s ({int(duration / DT)} 步)")
@@ -275,8 +287,9 @@ def gen_idyn_dataset(
     t0 = time.time()
 
     all_q, all_dq, all_tau, all_traj_id, all_q_des, all_dq_des = [], [], [], [], [], []
+    all_ddq_des = []
     all_tau_inv = []  # 完整逆动力学标签（含惯性项 M*ddq）
-    all_tau_bg = []  # 偏置+重力+摩擦标签（无惯性，6D 输入可学，推荐训练目标）
+    all_tau_bg = []  # 零加速度补偿标签，依赖位置和速度
 
     for i in range(n_traj):
         _, q_des, dq_des, ddq_des = gen_excitation_traj(
@@ -296,6 +309,7 @@ def gen_idyn_dataset(
         all_traj_id.append(np.full(T, i, dtype=np.int32))
         all_q_des.append(q_des[:T].astype(np.float32))
         all_dq_des.append(dq_des[:T].astype(np.float32))
+        all_ddq_des.append(ddq_des[:T].astype(np.float32))
 
         if (i + 1) % 5 == 0 or i == 0:
             elapsed = time.time() - t0
@@ -311,15 +325,17 @@ def gen_idyn_dataset(
     # 拼接所有轨迹
     q_all = np.concatenate(all_q, axis=0)
     dq_all = np.concatenate(all_dq, axis=0)
-    tau_all = np.concatenate(all_tau, axis=0)  # PD 控制力矩（含跟踪误差，旧版）
-    tau_inv_all = np.concatenate(all_tau_inv, axis=0)  # 完整逆动力学（含惯性，超出 6D 学习范围）
-    tau_bg_all = np.concatenate(all_tau_bg, axis=0)  # 偏置+重力+摩擦（6D 模型推荐训练目标）
+    tau_all = np.concatenate(all_tau, axis=0)  # PD 示教命令
+    tau_inv_all = np.concatenate(all_tau_inv, axis=0)  # 完整逆动力学，输入需包含加速度
+    tau_bg_all = np.concatenate(all_tau_bg, axis=0)  # 零加速度补偿
     tid_all = np.concatenate(all_traj_id)
     qd_all = np.concatenate(all_q_des, axis=0)
     dqd_all = np.concatenate(all_dq_des, axis=0)
+    ddqd_all = np.concatenate(all_ddq_des, axis=0)
 
     # inputs：[q_des, dq_des] — 6D 前馈模型输入
     X_des = np.concatenate([qd_all, dqd_all], axis=-1).astype(np.float32)  # (N, 6)
+    X_full = np.concatenate([X_des, ddqd_all], axis=-1).astype(np.float32)  # (N, 9)
     X_actual = np.concatenate([q_all, dq_all], axis=-1).astype(np.float32)  # (N, 6)
 
     tau_bg_diff = np.abs(tau_bg_all - tau_all).mean()
@@ -331,17 +347,22 @@ def gen_idyn_dataset(
     np.savez(
         NPZ_PATH,
         inputs=X_des,  # (N, 6) [q_des, dq_des] — 推荐推理输入
+        inputs_full=X_full,  # (N, 9) [q_des, dq_des, ddq_des] — 完整逆动力学输入
         inputs_actual=X_actual,  # (N, 6) [q_actual, dq_actual] — 备用
-        outputs=tau_all,  # (N, 3) PD 控制力矩（旧版，含噪声）
-        outputs_inv=tau_inv_all,  # (N, 3) 完整逆动力学（含惯性，参考）
-        outputs_bg=tau_bg_all,  # (N, 3) 偏置+重力+摩擦（推荐训练目标）
+        outputs=tau_all,  # (N, 3) PD 示教命令，不是精确逆动力学真值
+        outputs_inv=tau_inv_all,  # (N, 3) 指定加速度的逆动力学力矩
+        outputs_bg=tau_bg_all,  # (N, 3) 零加速度补偿力矩
         q=q_all,
         dq=dq_all,
         q_des=qd_all,
         dq_des=dqd_all,
+        ddq_des=ddqd_all,
         traj_id=tid_all,
         n_traj=np.int32(n_traj),
         dt=np.float32(DT),
+        label_version=np.int32(2),
+        seed=np.int64(seed),
+        mujoco_version=np.array(mujoco.__version__),
     )
     print(f"  已保存: {NPZ_PATH}  ({time.time() - t0:.1f}s)")
 

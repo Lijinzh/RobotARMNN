@@ -218,6 +218,7 @@ uv run src/train.py --arm all --model all  # 训练全部 IK 模型
 uv run src/visualize.py ik --arm all      # 误差对比图（🆕 自动保存）
 
 # 完整工作流：逆动力学（IDyn）
+# 已有 data/idyn_3dof.npz 时，先改名归档；生成命令会覆盖该文件。
 uv run src/data_gen_idyn.py --n_traj 30   # 生成 30 条激励轨迹（约 2 min）
 uv run src/train_idyn.py --model all       # 训练全部 IDyn 模型（约 3 min）
 uv run src/visualize_idyn.py               # 对比可视化（🆕 自动保存，含 MPC）
@@ -300,12 +301,42 @@ uv run src/visualize_mujoco.py --arm 3dof --use_nn --model_type esn
 ### 数据生成
 
 ```bash
+# 已有数据请先归档，避免覆盖旧实验所用的数据。
 uv run src/data_gen_idyn.py --n_traj 30   # 生成 30 条激励轨迹（推荐最小值）
 uv run src/data_gen_idyn.py --n_traj 60   # 更多轨迹，精度更高
 ```
 
-每条轨迹用高刚度 PD（KP=300, KD=5）驱动，跟踪误差 < 0.1°，标签可信度高。
-数据保存于 `data/idyn_3dof_*.npz`（已加入 `.gitignore`）。
+每条轨迹用高刚度 PD（KP=[300,300,200]、KD=[5,5,4]）驱动，实际跟踪误差随轨迹变化。
+数据保存于 `data/idyn_3dof.npz`（已加入 `.gitignore`），重新生成会覆盖该文件。
+
+**标签版本 2：三个目标需要分别使用。**
+
+| 标签 | 定义 | 对应输入 |
+|------|------|----------|
+| `outputs` | 高增益 PD 示教命令，包含闭环跟踪误差的影响，不是精确逆动力学真值 | `inputs`：`[q_des, dq_des]`，6 维 |
+| `outputs_inv` | `mj_inverse(q_des, dq_des, ddq_des)` 所需力矩 | `inputs_full`：`[q_des, dq_des, ddq_des]`，9 维 |
+| `outputs_bg` | `mj_inverse(q_des, dq_des, 0)` 的零加速度补偿力矩 | `inputs`：`[q_des, dq_des]`，6 维 |
+
+旧标签生成代码在设置期望加速度后调用 `mj_forward`，覆盖了加速度；旧 `outputs_bg`
+还错误地使用 `bias + passive`，反转了阻尼补偿符号，并漏掉由约束求解器处理的
+`frictionloss`。版本 2 直接调用 `mj_inverse`，其力平衡为
+`tau = M*ddq + bias - passive - constraint`。约束力可能随指定加速度变化，尤其在低速区，
+因此不能一般化为 `outputs_inv = M*ddq + outputs_bg`。
+
+新文件同时保存 `ddq_des`、`label_version=2`、`seed` 和 `mujoco_version`。
+没有 `label_version` 的旧文件应重新生成，改代码不会自动修复现有 `.npz`。
+轨迹超限时同步缩放位置、速度、加速度，保持解析导数一致。
+
+现有 `train_idyn.py` 仍默认训练 `inputs → outputs`，不会自动选择 `bg` 或九维 `inv`。
+器件/多项式回归应显式选用对应字段，按 `traj_id` 划分训练、验证、测试轨迹，
+并只使用训练集估计标准化参数。旧 `bg` 上的低误差不能代表正确补偿的精度；
+修正 `bg` 包含速度换向附近的摩擦变化，可另行评估分段、饱和或速度方向特征。
+
+物理回归测试（含加速度响应、摩擦方向、低速正反动力学往返及轨迹导数一致性）：
+
+```bash
+uv run pytest tests/test_idyn_labels.py -v
+```
 
 ### 训练
 
@@ -375,6 +406,9 @@ $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --model mpc mpc_gru gru
 
 ### ⚡ IDyn 闭环跟踪误差（RTX 4090，30 条轨迹）
 
+以下为已有 `outputs` 示教训练及权重的历史结果；本次标签修复未重新训练模型，
+这些数值不代表版本 2 的 `outputs_inv` / `outputs_bg` 离线预测精度。
+
 | 方案 | 验证 MAE | 闭环误差（均值） | 各关节误差 [J1, J2, J3] | 每步用时 |
 |------|---------|---------------|----------------------|------|
 | 纯 PD（基准，无前馈） | — | 2.433° | [3.354, 2.014, 1.931]° | ~0.01 ms |
@@ -433,11 +467,11 @@ $env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --model mpc mpc_gru gru
 
 | 参数 | 值 | 说明 |
 |------|----|------|
-| KP_DATA / KD_DATA | 300 / 5 | 数据生成高刚度（标签误差 < 0.1°）|
+| KP_DATA / KD_DATA | [300,300,200] / [5,5,4] | 数据生成高刚度 PD，实际跟踪误差需测量 |
 | KP / KD（测试） | 8 / 1.5 | 软刚度 PD，凸显前馈效果 |
 | ctrlrange | ±50 N·m | 支持峰值前馈幅值 |
 | `<compiler angle="radian"/>` | MJCF 必需 | 否则关节范围默认解释为角度 |
-| Coulomb 摩擦 | frictionloss | 迟滞效应，GRU/LSTM 门控记忆可建模 |
+| Coulomb 摩擦 | frictionloss | 由约束求解器处理；不能仅凭此参数认定存在独立迟滞状态或递归模型优势 |
 
 ### 技术栈
 
