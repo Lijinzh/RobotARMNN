@@ -56,11 +56,13 @@ from src.kinematics_2dof import (
     PlanarArmConfig,
     forward_kinematics_planar,
     inverse_kinematics_planar,
+    valid_joint_angles_planar,
 )
 from src.kinematics_3dof import (
     Arm3DOFConfig,
     forward_kinematics_3dof,
     inverse_kinematics_3dof,
+    valid_joint_angles_3dof,
 )
 from src.models import IKNN_ESN, IKNN_MLP
 
@@ -74,32 +76,51 @@ EXPORT_DIR = os.path.join(os.path.dirname(__file__), "..", "export")
 
 def sample_targets_2dof(cfg: PlanarArmConfig, n: int, seed: int = 42) -> np.ndarray:
     """在 2-DOF 平面臂工作空间内均匀采样目标点（环形 XY）。"""
+    if n < 0:
+        raise ValueError("采样点数 n 必须为非负整数")
+    if n == 0:
+        return np.empty((0, 2), dtype=np.float64)
     rng = np.random.default_rng(seed)
     r_min = cfg.r_min + 0.01
     r_max = cfg.r_max - 0.01
+    if not np.isfinite([r_min, r_max]).all() or not 0.0 <= r_min < r_max:
+        raise ValueError("连杆长度与安全边距形成空采样域，请检查机械臂配置")
     targets = []
-    while len(targets) < n:
-        batch = rng.uniform(-r_max, r_max, (n * 3, 2))
+    count = 0
+    while count < n:
+        batch = rng.uniform(-r_max, r_max, (min(3 * (n - count), 8192), 2))
         r = np.linalg.norm(batch, axis=1)
         valid = (r >= r_min) & (r <= r_max)
-        targets.append(batch[valid])
-    return np.concatenate(targets, axis=0)[:n]
+        accepted = batch[valid][: n - count]
+        targets.append(accepted)
+        count += len(accepted)
+    return np.concatenate(targets, axis=0)
 
 
 def sample_targets_3dof(cfg: Arm3DOFConfig, n: int, seed: int = 42) -> np.ndarray:
     """在 3-DOF 空间臂工作空间内均匀采样目标点（球壳内）。"""
+    if n < 0:
+        raise ValueError("采样点数 n 必须为非负整数")
+    if n == 0:
+        return np.empty((0, 3), dtype=np.float64)
     rng = np.random.default_rng(seed)
     r_max = cfg.L1 + cfg.L2 - 0.01
     r_min = 0.05
+    if (not np.isfinite([cfg.L0, r_min, r_max]).all()
+            or not r_min < r_max or cfg.L0 + r_max <= 0.05):
+        raise ValueError("连杆长度、安全边距与高度限制形成空采样域，请检查机械臂配置")
     targets = []
-    while len(targets) < n:
-        batch = rng.uniform(-r_max, r_max, (n * 3, 3))
+    count = 0
+    while count < n:
+        batch = rng.uniform(-r_max, r_max, (min(3 * (n - count), 8192), 3))
         batch[:, 2] += cfg.L0
         r3d = np.linalg.norm(batch - np.array([0, 0, cfg.L0]), axis=1)
         z_ok = (batch[:, 2] >= 0.05) & (batch[:, 2] <= cfg.L0 + cfg.L1 + cfg.L2 - 0.01)
         valid = (r3d >= r_min) & (r3d <= r_max) & z_ok
-        targets.append(batch[valid])
-    return np.concatenate(targets, axis=0)[:n]
+        accepted = batch[valid][: n - count]
+        targets.append(accepted)
+        count += len(accepted)
+    return np.concatenate(targets, axis=0)
 
 
 def solve_2dof_all(
@@ -140,10 +161,13 @@ def solve_2dof_all(
             cfg.L1 * np.cos(theta1) + cfg.L2 * np.cos(theta1 + theta2),
             cfg.L1 * np.sin(theta1) + cfg.L2 * np.sin(theta1 + theta2),
         ])
+        valid_mlp = np.isfinite(sincos).all(axis=1) & valid_joint_angles_planar(
+            np.column_stack([theta1, theta2]), cfg
+        )
         results["mlp"] = {
             "ee": ee_mlp,
-            "err_mm": np.linalg.norm(ee_mlp - targets, axis=1) * 1000,
-            "valid": np.ones(N, bool),
+            "err_mm": np.where(valid_mlp, np.linalg.norm(ee_mlp - targets, axis=1) * 1000, np.nan),
+            "valid": valid_mlp,
         }
 
     # ---- ESN ----
@@ -158,10 +182,13 @@ def solve_2dof_all(
             cfg.L1 * np.cos(theta1) + cfg.L2 * np.cos(theta1 + theta2),
             cfg.L1 * np.sin(theta1) + cfg.L2 * np.sin(theta1 + theta2),
         ])
+        valid_esn = np.isfinite(sincos).all(axis=1) & valid_joint_angles_planar(
+            np.column_stack([theta1, theta2]), cfg
+        )
         results["esn"] = {
             "ee": ee_esn,
-            "err_mm": np.linalg.norm(ee_esn - targets, axis=1) * 1000,
-            "valid": np.ones(N, bool),
+            "err_mm": np.where(valid_esn, np.linalg.norm(ee_esn - targets, axis=1) * 1000, np.nan),
+            "valid": valid_esn,
         }
 
     return results
@@ -198,14 +225,17 @@ def solve_3dof_all(
     z_prime = targets[:, 2] - cfg.L0
     theta1_ana = np.arctan2(targets[:, 1], targets[:, 0])
 
-    def decode_3dof(sincos: np.ndarray) -> np.ndarray:
+    def decode_3dof(sincos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         t2 = np.arctan2(sincos[:, 0], sincos[:, 1])
         t3 = np.arctan2(sincos[:, 2], sincos[:, 3])
         r = cfg.L1 * np.cos(t2) + cfg.L2 * np.cos(t2 + t3)
         z = cfg.L0 + cfg.L1 * np.sin(t2) + cfg.L2 * np.sin(t2 + t3)
         x = r * np.cos(theta1_ana)
         y = r * np.sin(theta1_ana)
-        return np.column_stack([x, y, z])
+        valid = np.isfinite(sincos).all(axis=1) & valid_joint_angles_3dof(
+            np.column_stack([theta1_ana, t2, t3]), cfg
+        )
+        return np.column_stack([x, y, z]), valid
 
     feat = np.column_stack([r_xy, z_prime]).astype(np.float32)
 
@@ -214,11 +244,11 @@ def solve_3dof_all(
         mlp_model.eval()
         with torch.no_grad():
             sincos = mlp_model(torch.from_numpy(feat)).numpy()
-        ee_mlp = decode_3dof(sincos)
+        ee_mlp, valid_mlp = decode_3dof(sincos)
         results["mlp"] = {
             "ee": ee_mlp,
-            "err_mm": np.linalg.norm(ee_mlp - targets, axis=1) * 1000,
-            "valid": np.ones(N, bool),
+            "err_mm": np.where(valid_mlp, np.linalg.norm(ee_mlp - targets, axis=1) * 1000, np.nan),
+            "valid": valid_mlp,
             "targets_2d": np.column_stack([r_xy, z_prime]),
         }
 
@@ -227,11 +257,11 @@ def solve_3dof_all(
         esn_model.eval()
         with torch.no_grad():
             sincos = esn_model(torch.from_numpy(feat)).numpy()
-        ee_esn = decode_3dof(sincos)
+        ee_esn, valid_esn = decode_3dof(sincos)
         results["esn"] = {
             "ee": ee_esn,
-            "err_mm": np.linalg.norm(ee_esn - targets, axis=1) * 1000,
-            "valid": np.ones(N, bool),
+            "err_mm": np.where(valid_esn, np.linalg.norm(ee_esn - targets, axis=1) * 1000, np.nan),
+            "valid": valid_esn,
         }
 
     return results
@@ -257,7 +287,21 @@ def plot_ik_comparison(
         fontsize=26,
         fontweight="bold",
     )
-    gs = gridspec.GridSpec(2, 2, hspace=0.44, wspace=0.35)
+    legal_rates = " / ".join(
+        f"{label} {np.mean(results[key]['valid']) * 100:.1f}%"
+        for key, label in [("analytical", "解析"), ("mlp", "MLP"), ("esn", "ESN")]
+        if key in results
+    )
+    fig.text(
+        0.5, 0.915, f"误差仅统计合法解；合法解率：{legal_rates}",
+        ha="center", va="center", fontsize=18,
+    )
+    if is_3dof:
+        fig.text(
+            0.5, 0.875, "球壳广域压力测试：含正肘训练域外目标",
+            ha="center", va="center", fontsize=18,
+        )
+    gs = gridspec.GridSpec(2, 2, top=0.81 if is_3dof else 0.85, hspace=0.44, wspace=0.35)
 
     # ---- (a) 误差 CDF ----
     ax0 = fig.add_subplot(gs[0, 0])
@@ -405,16 +449,17 @@ def print_summary_ik(arm_label: str, results: dict) -> None:
     print(f"\n{'=' * 65}")
     print(f"  {arm_label} IK 误差对比（末端位置误差 mm；低→好）")
     print("=" * 65)
-    fmt = "  {:<22}  均值={:7.3f}mm  中位={:7.3f}mm  p95={:7.2f}mm  可达率={:.1f}%"
+    fmt = "  {:<22}  均值={:7.3f}mm  中位={:7.3f}mm  p95={:7.2f}mm  合法解率={:.1f}%"
+    print("  误差仅统计合法解；合法解率检查有限与关节限位，不代表精度成功率。")
     for key, label in [("analytical", "解析 IK（基准）"), ("mlp", "MLP IK"), ("esn", "ESN IK")]:
         if key not in results:
             continue
         errs = results[key]["err_mm"]
         valid = results[key]["valid"]
         errs_v = errs[~np.isnan(errs)]
-        reach = valid.mean() * 100
+        reach = valid.mean() * 100 if len(valid) else 0.0
         if len(errs_v) == 0:
-            print(f"  {label:<22}  （无数据）")
+            print(f"  {label:<22}  合法解率={reach:.1f}%（无合法解，无法统计误差）")
             continue
         print(
             fmt.format(label, np.mean(errs_v), np.median(errs_v), np.percentile(errs_v, 95), reach)
@@ -493,6 +538,7 @@ def run_ik(args) -> None:
                 print(f"[vis_ik] 未找到 3DOF {name} 检查点，跳过")
 
         print(f"[vis_ik] 采样 {args.n_test} 个 3DOF 目标点...")
+        print("[vis_ik] 球壳广域压力测试，包含正肘训练域外目标；不等同训练域内精度。")
         targets_3d = sample_targets_3dof(cfg3, args.n_test, seed=args.seed)
         results_3d = solve_3dof_all(targets_3d, cfg3, mlp3, esn3)
         print_summary_ik("3DOF", results_3d)
@@ -632,19 +678,23 @@ def _run_2dof_viewer(
     target_mocap_id = mjmodel.body_mocapid[target_body_id]
 
     nn_model = None
-    if use_nn and nn_ckpt:
+    if use_nn:
+        if not nn_ckpt:
+            print("[2DOF] NN 模式缺少检查点，终止显示；未切换为解析 IK。")
+            return
         nn_model, info = _load_ik_model_mujoco(model_type, nn_ckpt, "2dof")
         if nn_model:
             print(f"[2DOF] NN IK 模型已加载：{info}")
         else:
-            print("[2DOF] 加载 NN 模型失败，降级为解析 IK")
+            print("[2DOF] 加载 NN 模型失败，终止显示；未切换为解析 IK。")
+            return
     else:
         print("[2DOF] 使用解析 IK")
 
     j1_id = mujoco.mj_name2id(mjmodel, mujoco.mjtObj.mjOBJ_JOINT, "joint1")
     j2_id = mujoco.mj_name2id(mjmodel, mujoco.mjtObj.mjOBJ_JOINT, "joint2")
 
-    print("\n=== 2-DOF 平面臂 MuJoCo 可视化 ===")
+    print("\n=== 2-DOF 平面臂 MuJoCo 运动学摆位（不执行动力学积分） ===")
     print("  ↑/↓: +Y/-Y   ←/→: -X/+X   R: 复位   SPACE: 演示   P: 打印状态\n")
 
     with mujoco.viewer.launch_passive(
@@ -654,6 +704,7 @@ def _run_2dof_viewer(
         viewer.cam.elevation = -70
         viewer.cam.distance = 0.8
         viewer.cam.lookat[:] = [0, 0, 0.05]
+        last_status = None
 
         while viewer.is_running():
             t_loop = time.time()
@@ -684,13 +735,23 @@ def _run_2dof_viewer(
                     float(np.arctan2(sincos[0], sincos[1])),
                     float(np.arctan2(sincos[2], sincos[3])),
                 )
+                if not np.isfinite(sincos).all():
+                    angles = None
             else:
                 angles = inverse_kinematics_planar(_target[:2], cfg, elbow_up=True)
 
-            if angles:
+            valid = angles is not None and bool(valid_joint_angles_planar(angles, cfg))
+            if valid:
                 data.qpos[j1_id] = angles[0]
                 data.qpos[j2_id] = angles[1]
-                mujoco.mj_forward(mjmodel, data)
+            mujoco.mj_forward(mjmodel, data)
+            source = "NN IK" if nn_model is not None else "Analytical IK"
+            status = f"{source}: valid" if valid else f"{source}: REJECTED; holding last pose"
+            if hasattr(viewer, "set_texts"):
+                viewer.set_texts((None, None, "Kinematic pose only (no dynamics)", status))
+            if not valid and status != last_status:
+                print(f"[2DOF] {source} 无合法有限解，拒绝更新，保持上一有效姿态。")
+            last_status = status
 
             if _print_info:
                 ee = data.sensor("ee_pos").data.copy()
@@ -736,12 +797,16 @@ def _run_3dof_viewer(
     target_mocap_id = mjmodel.body_mocapid[target_body_id]
 
     nn_model = None
-    if use_nn and nn_ckpt:
+    if use_nn:
+        if not nn_ckpt:
+            print("[3DOF] NN 模式缺少检查点，终止显示；未切换为解析 IK。")
+            return
         nn_model, info = _load_ik_model_mujoco(model_type, nn_ckpt, "3dof")
         if nn_model:
             print(f"[3DOF] NN IK 模型已加载：{info}")
         else:
-            print("[3DOF] 加载失败，降级为解析 IK")
+            print("[3DOF] 加载 NN 模型失败，终止显示；未切换为解析 IK。")
+            return
     else:
         print("[3DOF] 使用解析 IK")
 
@@ -749,7 +814,7 @@ def _run_3dof_viewer(
     j2_id = mujoco.mj_name2id(mjmodel, mujoco.mjtObj.mjOBJ_JOINT, "joint2")
     j3_id = mujoco.mj_name2id(mjmodel, mujoco.mjtObj.mjOBJ_JOINT, "joint3")
 
-    print("\n=== 3-DOF 空间臂 MuJoCo 可视化 ===")
+    print("\n=== 3-DOF 空间臂 MuJoCo 运动学摆位（不执行动力学积分） ===")
     print("  ↑/↓: +Y/-Y   ←/→: -X/+X   KP8/KP2: +Z/-Z   R: 复位   SPACE: 演示   P: 打印\n")
 
     with mujoco.viewer.launch_passive(
@@ -759,6 +824,7 @@ def _run_3dof_viewer(
         viewer.cam.elevation = -30
         viewer.cam.distance = 1.0
         viewer.cam.lookat[:] = [0, 0, 0.25]
+        last_status = None
 
         while viewer.is_running():
             t_loop = time.time()
@@ -798,14 +864,24 @@ def _run_3dof_viewer(
                     float(np.arctan2(sincos[0], sincos[1])),
                     float(np.arctan2(sincos[2], sincos[3])),
                 )
+                if not np.isfinite(sincos).all():
+                    angles = None
             else:
                 angles = inverse_kinematics_3dof(_target, cfg, elbow_up=True)
 
-            if angles:
+            valid = angles is not None and bool(valid_joint_angles_3dof(angles, cfg))
+            if valid:
                 data.qpos[j1_id] = angles[0]
                 data.qpos[j2_id] = angles[1]
                 data.qpos[j3_id] = angles[2]
-                mujoco.mj_forward(mjmodel, data)
+            mujoco.mj_forward(mjmodel, data)
+            source = "NN IK" if nn_model is not None else "Analytical IK"
+            status = f"{source}: valid" if valid else f"{source}: REJECTED; holding last pose"
+            if hasattr(viewer, "set_texts"):
+                viewer.set_texts((None, None, "Kinematic pose only (no dynamics)", status))
+            if not valid and status != last_status:
+                print(f"[3DOF] {source} 无合法有限解，拒绝更新，保持上一有效姿态。")
+            last_status = status
 
             if _print_info:
                 ee = data.sensor("ee_pos").data.copy()

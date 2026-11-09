@@ -7,6 +7,7 @@
        连杆参数：L0=0.10m（底柱），L1=0.15m（大臂），L2=0.12m（小臂） -->
 
   <option timestep="0.002" gravity="0 0 -9.81" integrator="RK4"/>
+  <compiler angle="radian"/>
 
   <default>
     <joint damping="0.05" armature="0.01"/>

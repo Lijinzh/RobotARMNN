@@ -99,38 +99,13 @@ def inverse_kinematics_planar(
     参数:
         target_xy: [X, Y] 目标末端坐标（米）
         cfg:       机械臂配置
-        elbow_up:  True → 取 θ2 > 0（肘部向上/左），False → θ2 < 0（肘部向下/右）
+        elbow_up:  True 优先 θ2 >= 0，False 优先 θ2 <= 0；超限时尝试另一分支。
 
     返回:
         (theta1, theta2) 弧度；若目标不可达返回 None。
     """
-    x, y = float(target_xy[0]), float(target_xy[1])
-    r2 = x**2 + y**2  # 目标距底座距离的平方
-
-    # 余弦定理：D = cos(θ2)
-    D = (r2 - cfg.L1**2 - cfg.L2**2) / (2.0 * cfg.L1 * cfg.L2)
-
-    # 检查可达性（|D| > 1 表示目标在奇异伸展半径之外）
-    if D < -1.0 - 1e-6 or D > 1.0 + 1e-6:
-        return None  # 目标超出工作空间
-
-    # 钳制数值误差
-    D = float(np.clip(D, -1.0, 1.0))
-
-    # 肘关节角（两解：elbow_up → θ2 正值，elbow_down → θ2 负值）
-    sin_theta2 = np.sqrt(max(0.0, 1.0 - D**2))
-    if not elbow_up:
-        sin_theta2 = -sin_theta2
-    theta2 = float(np.arctan2(sin_theta2, D))
-
-    # 肩关节角
-    k1 = cfg.L1 + cfg.L2 * D
-    k2 = cfg.L2 * sin_theta2
-    theta1 = float(np.arctan2(y, x) - np.arctan2(k2, k1))
-    # 归一化到 [-π, π]
-    theta1 = float(np.arctan2(np.sin(theta1), np.cos(theta1)))
-
-    return (theta1, theta2)
+    result = _inverse_kinematics_planar_array(np.asarray(target_xy)[None, :], cfg, elbow_up)[0]
+    return tuple(float(angle) for angle in result) if np.isfinite(result).all() else None
 
 
 def inverse_kinematics_planar_batch(
@@ -148,26 +123,34 @@ def inverse_kinematics_planar_batch(
     返回:
         (N, 2) [θ1, θ2]，不可达点为 NaN
     """
-    x = targets[:, 0].astype(np.float64)
-    y = targets[:, 1].astype(np.float64)
-    r2 = x**2 + y**2
+    return _inverse_kinematics_planar_array(np.asarray(targets), cfg, elbow_up).astype(np.float32)
 
-    D = (r2 - cfg.L1**2 - cfg.L2**2) / (2.0 * cfg.L1 * cfg.L2)
-    valid = (D >= -1.0 - 1e-6) & (D <= 1.0 + 1e-6)
+
+def valid_joint_angles_planar(angles: np.ndarray, cfg: PlanarArmConfig) -> np.ndarray:
+    """检查输出是否有限且满足全部关节限位；容忍 float32 边界舍入。"""
+    angles = np.asarray(angles)
+    lower = np.array([cfg.theta1_min, cfg.theta2_min])
+    upper = np.array([cfg.theta1_max, cfg.theta2_max])
+    return np.all(np.isfinite(angles) & (angles >= lower - 1e-6) & (angles <= upper + 1e-6), axis=-1)
+
+
+def _inverse_kinematics_planar_array(targets, cfg, elbow_up):
+    """单点和批量共用双精度求解，优先分支超限时才采用另一分支。"""
+    x, y = targets[:, 0].astype(np.float64), targets[:, 1].astype(np.float64)
+    D = (x**2 + y**2 - cfg.L1**2 - cfg.L2**2) / (2.0 * cfg.L1 * cfg.L2)
+    reachable = np.isfinite(targets).all(axis=1) & (D >= -1.0 - 1e-6) & (D <= 1.0 + 1e-6)
     D = np.clip(D, -1.0, 1.0)
-
-    sin_t2 = np.sqrt(np.maximum(0.0, 1.0 - D**2))
-    if not elbow_up:
-        sin_t2 = -sin_t2
-    theta2 = np.arctan2(sin_t2, D)
-
-    k1 = cfg.L1 + cfg.L2 * D
-    k2 = cfg.L2 * sin_t2
-    theta1 = np.arctan2(y, x) - np.arctan2(k2, k1)
-    theta1 = np.arctan2(np.sin(theta1), np.cos(theta1))  # 归一化
-
-    result = np.stack([theta1, theta2], axis=-1).astype(np.float32)
-    result[~valid] = np.nan
+    sine = np.sqrt(np.maximum(0.0, 1.0 - D**2))
+    result = np.full((len(targets), 2), np.nan)
+    preferred = 1.0 if elbow_up else -1.0
+    for direction in (preferred, -preferred):
+        sin_t2 = direction * sine
+        theta2 = np.arctan2(sin_t2, D)
+        theta1 = np.arctan2(y, x) - np.arctan2(cfg.L2 * sin_t2, cfg.L1 + cfg.L2 * D)
+        theta1 = np.arctan2(np.sin(theta1), np.cos(theta1))
+        candidate = np.column_stack([theta1, theta2])
+        accept = reachable & valid_joint_angles_planar(candidate, cfg) & np.isnan(result[:, 0])
+        result[accept] = candidate[accept]
     return result
 
 

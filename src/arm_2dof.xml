@@ -7,6 +7,7 @@
        全部运动在 Z=0.05m 水平面内 -->
 
   <option timestep="0.002" gravity="0 0 -9.81" integrator="RK4"/>
+  <compiler angle="radian"/>
 
   <default>
     <joint damping="0.05" armature="0.01"/>

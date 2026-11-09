@@ -3,8 +3,8 @@ MuJoCo 交互式机械臂可视化
 
 功能：
   - 平面 2-DOF 机械臂（水平 XY 平面）和 3-DOF 空间机械臂 MuJoCo 实时渲染
-  - 键盘控制目标点位置，机械臂实时跟踪（IK → 设置关节角）
-  - 若已训练好神经网络，优先用 NN 计算 IK；否则降级为解析解
+  - 键盘控制目标点位置，以 IK 直接设置合法关节角；这是运动学摆位，不执行动力学积分
+  - 默认使用解析 IK；显式 NN 模式缺权重时终止，非法输出保持上一有效姿态并提示
 
 键盘操作：
   ↑ / ↓      — 目标点 +Y / -Y（前后）
@@ -42,8 +42,16 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from src.kinematics_2dof import PlanarArmConfig, inverse_kinematics_planar
-from src.kinematics_3dof import Arm3DOFConfig, inverse_kinematics_3dof
+from src.kinematics_2dof import (
+    PlanarArmConfig,
+    inverse_kinematics_planar,
+    valid_joint_angles_planar,
+)
+from src.kinematics_3dof import (
+    Arm3DOFConfig,
+    inverse_kinematics_3dof,
+    valid_joint_angles_3dof,
+)
 
 # =====================================================================
 # GLFW 方向键码（> 128，不能用 chr()）
@@ -268,13 +276,17 @@ def run_2dof_visualizer(
 
     # ---- 可选：加载 NN 模型 ----
     nn_model = None
-    if use_nn and nn_ckpt:
+    if use_nn:
+        if not nn_ckpt:
+            print("[2DOF] NN 模式缺少检查点，终止显示；未切换为解析 IK。")
+            return
         nn_model, model_info = load_ik_model(model_type, nn_ckpt, "2dof")
         if nn_model is not None:
             print(f"[2DOF] NN IK 模型已加载：{model_info}")
             print(f"       路径: {nn_ckpt}")
         else:
-            print("[2DOF] 加载 NN 模型失败，降级为解析 IK")
+            print("[2DOF] 加载 NN 模型失败，终止显示；未切换为解析 IK。")
+            return
     else:
         print("[2DOF] 使用解析 IK（解析解精度最优）")
 
@@ -284,7 +296,7 @@ def run_2dof_visualizer(
 
     key_cb = make_key_callback("2dof", demo_config)
 
-    print("\n=== 2-DOF 平面臂 MuJoCo 可视化 ===")
+    print("\n=== 2-DOF 平面臂 MuJoCo 运动学摆位（不执行动力学积分） ===")
     print("  ↑/↓: 目标 +Y/-Y    ←/→: 目标 -X/+X  （长按连续移动）")
     print("  R: 复位             SPACE: 圆形演示")
     print("  P: 打印当前状态     鼠标拖动: 旋转视角\n")
@@ -295,6 +307,7 @@ def run_2dof_visualizer(
         viewer.cam.elevation = -70
         viewer.cam.distance = 0.8
         viewer.cam.lookat[:] = [0, 0, 0.05]
+        last_status = None
 
         while viewer.is_running():
             t_loop = time.time()
@@ -339,14 +352,24 @@ def run_2dof_visualizer(
                 theta1 = float(np.arctan2(sincos[0], sincos[1]))
                 theta2 = float(np.arctan2(sincos[2], sincos[3]))
                 angles = (theta1, theta2)
+                if not np.isfinite(sincos).all():
+                    angles = None
             else:
                 angles = inverse_kinematics_planar(target_xy, cfg, elbow_up=True)
 
-            if angles is not None:
-                # 直接设置关节位置（位置控制，不经物理仿真）
+            valid = angles is not None and bool(valid_joint_angles_planar(angles, cfg))
+            if valid:
+                # 仅接受合法运动学姿态；不执行力矩控制或动力学积分。
                 data.qpos[j1_id] = angles[0]
                 data.qpos[j2_id] = angles[1]
-                mujoco.mj_forward(model, data)
+            mujoco.mj_forward(model, data)
+            source = "NN IK" if nn_model is not None else "Analytical IK"
+            status = f"{source}: valid" if valid else f"{source}: REJECTED; holding last pose"
+            if hasattr(viewer, "set_texts"):
+                viewer.set_texts((None, None, "Kinematic pose only (no dynamics)", status))
+            if not valid and status != last_status:
+                print(f"[2DOF] {source} 无合法有限解，拒绝更新，保持上一有效姿态。")
+            last_status = status
 
             # ---- 打印信息 ----
             if _print_info:
@@ -404,13 +427,17 @@ def run_3dof_visualizer(
 
     # ---- 可选：加载 NN ----
     nn_model = None
-    if use_nn and nn_ckpt:
+    if use_nn:
+        if not nn_ckpt:
+            print("[3DOF] NN 模式缺少检查点，终止显示；未切换为解析 IK。")
+            return
         nn_model, model_info = load_ik_model(model_type, nn_ckpt, "3dof")
         if nn_model is not None:
             print(f"[3DOF] NN IK 模型已加载：{model_info}")
             print(f"       路径: {nn_ckpt}")
         else:
-            print("[3DOF] 加载 NN 模型失败，降级为解析 IK")
+            print("[3DOF] 加载 NN 模型失败，终止显示；未切换为解析 IK。")
+            return
     else:
         print("[3DOF] 使用解析 IK")
 
@@ -420,7 +447,7 @@ def run_3dof_visualizer(
 
     key_cb = make_key_callback("3dof", demo_config)
 
-    print("\n=== 3-DOF 空间臂 MuJoCo 可视化 ===")
+    print("\n=== 3-DOF 空间臂 MuJoCo 运动学摆位（不执行动力学积分） ===")
     print("  ↑/↓: 目标 +Y/-Y    ←/→: 目标 -X/+X    KP8/KP2: 目标 +Z/-Z  （长按连续移动）")
     print("  R: 复位             SPACE: 圆形演示")
     print("  P: 打印当前状态     鼠标拖动: 旋转视角\n")
@@ -431,6 +458,7 @@ def run_3dof_visualizer(
         viewer.cam.elevation = -30
         viewer.cam.distance = 1.0
         viewer.cam.lookat[:] = [0, 0, 0.25]
+        last_status = None
 
         while viewer.is_running():
             t_loop = time.time()
@@ -477,14 +505,24 @@ def run_3dof_visualizer(
                 theta2 = float(np.arctan2(sincos[0], sincos[1]))
                 theta3 = float(np.arctan2(sincos[2], sincos[3]))
                 angles = (theta1, theta2, theta3)
+                if not np.isfinite(sincos).all():
+                    angles = None
             else:
                 angles = inverse_kinematics_3dof(_target, cfg, elbow_up=True)
 
-            if angles is not None:
+            valid = angles is not None and bool(valid_joint_angles_3dof(angles, cfg))
+            if valid:
                 data.qpos[j1_id] = angles[0]
                 data.qpos[j2_id] = angles[1]
                 data.qpos[j3_id] = angles[2]
-                mujoco.mj_forward(model, data)
+            mujoco.mj_forward(model, data)
+            source = "NN IK" if nn_model is not None else "Analytical IK"
+            status = f"{source}: valid" if valid else f"{source}: REJECTED; holding last pose"
+            if hasattr(viewer, "set_texts"):
+                viewer.set_texts((None, None, "Kinematic pose only (no dynamics)", status))
+            if not valid and status != last_status:
+                print(f"[3DOF] {source} 无合法有限解，拒绝更新，保持上一有效姿态。")
+            last_status = status
 
             if _print_info:
                 ee_pos = data.sensor("ee_pos").data.copy()

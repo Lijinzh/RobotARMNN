@@ -50,11 +50,13 @@ from src.kinematics_2dof import (
     PlanarArmConfig,
     forward_kinematics_planar,
     inverse_kinematics_planar,
+    valid_joint_angles_planar,
 )
 from src.kinematics_3dof import (
     Arm3DOFConfig,
     forward_kinematics_3dof,
     inverse_kinematics_3dof,
+    valid_joint_angles_3dof,
 )
 from src.models import IKNN_ESN, IKNN_MLP
 
@@ -76,19 +78,28 @@ def sample_targets_2dof(cfg: PlanarArmConfig, n: int, seed: int = 42) -> np.ndar
     返回:
         (n, 2) float64 [X, Y]（米）
     """
+    if n < 0:
+        raise ValueError("采样点数 n 必须为非负整数")
+    if n == 0:
+        return np.empty((0, 2), dtype=np.float64)
     rng = np.random.default_rng(seed)
     # 均匀采样环形（拒绝采样简单可靠）
     # 极坐标：r² 均匀 → r 分布正确
     r_min = cfg.r_min + 0.01
     r_max = cfg.r_max - 0.01
+    if not np.isfinite([r_min, r_max]).all() or not 0.0 <= r_min < r_max:
+        raise ValueError("连杆长度与安全边距形成空采样域，请检查机械臂配置")
     targets = []
-    while len(targets) < n:
+    count = 0
+    while count < n:
         # 批量采样候选点（XY 均匀正方形内）
-        batch = rng.uniform(-r_max, r_max, (n * 3, 2))
+        batch = rng.uniform(-r_max, r_max, (min(3 * (n - count), 8192), 2))
         r = np.linalg.norm(batch, axis=1)
         valid = (r >= r_min) & (r <= r_max)
-        targets.append(batch[valid])
-    return np.concatenate(targets, axis=0)[:n]
+        accepted = batch[valid][: n - count]
+        targets.append(accepted)
+        count += len(accepted)
+    return np.concatenate(targets, axis=0)
 
 
 def sample_targets_3dof(cfg: Arm3DOFConfig, n: int, seed: int = 42) -> np.ndarray:
@@ -100,19 +111,29 @@ def sample_targets_3dof(cfg: Arm3DOFConfig, n: int, seed: int = 42) -> np.ndarra
     返回:
         (n, 3) float64 [X, Y, Z]（米）
     """
+    if n < 0:
+        raise ValueError("采样点数 n 必须为非负整数")
+    if n == 0:
+        return np.empty((0, 3), dtype=np.float64)
     rng = np.random.default_rng(seed)
     r_max = cfg.L1 + cfg.L2 - 0.01
     r_min = 0.05  # 避免奇异点
+    if (not np.isfinite([cfg.L0, r_min, r_max]).all()
+            or not r_min < r_max or cfg.L0 + r_max <= 0.05):
+        raise ValueError("连杆长度、安全边距与高度限制形成空采样域，请检查机械臂配置")
     targets = []
-    while len(targets) < n:
-        batch = rng.uniform(-r_max, r_max, (n * 3, 3))
+    count = 0
+    while count < n:
+        batch = rng.uniform(-r_max, r_max, (min(3 * (n - count), 8192), 3))
         # Z 必须在合理范围内：Z ≥ L0 - reach_max + margin
         batch[:, 2] += cfg.L0  # 以 L0 为 Z 中心偏置
         r3d = np.linalg.norm(batch - np.array([0, 0, cfg.L0]), axis=1)
         z_ok = (batch[:, 2] >= 0.05) & (batch[:, 2] <= cfg.L0 + cfg.L1 + cfg.L2 - 0.01)
         valid = (r3d >= r_min) & (r3d <= r_max) & z_ok
-        targets.append(batch[valid])
-    return np.concatenate(targets, axis=0)[:n]
+        accepted = batch[valid][: n - count]
+        targets.append(accepted)
+        count += len(accepted)
+    return np.concatenate(targets, axis=0)
 
 
 # =====================================================================
@@ -167,8 +188,11 @@ def solve_2dof_all(
             cfg.L1 * np.cos(theta1) + cfg.L2 * np.cos(theta1 + theta2),
             cfg.L1 * np.sin(theta1) + cfg.L2 * np.sin(theta1 + theta2),
         ])
-        err_mlp = np.linalg.norm(ee_mlp - targets, axis=1) * 1000
-        results["mlp"] = {"ee": ee_mlp, "err_mm": err_mlp, "valid": np.ones(N, bool)}
+        valid_mlp = np.isfinite(sincos).all(axis=1) & valid_joint_angles_planar(
+            np.column_stack([theta1, theta2]), cfg
+        )
+        err_mlp = np.where(valid_mlp, np.linalg.norm(ee_mlp - targets, axis=1) * 1000, np.nan)
+        results["mlp"] = {"ee": ee_mlp, "err_mm": err_mlp, "valid": valid_mlp}
 
     # ---- ESN ----
     if esn_model is not None:
@@ -182,8 +206,11 @@ def solve_2dof_all(
             cfg.L1 * np.cos(theta1) + cfg.L2 * np.cos(theta1 + theta2),
             cfg.L1 * np.sin(theta1) + cfg.L2 * np.sin(theta1 + theta2),
         ])
-        err_esn = np.linalg.norm(ee_esn - targets, axis=1) * 1000
-        results["esn"] = {"ee": ee_esn, "err_mm": err_esn, "valid": np.ones(N, bool)}
+        valid_esn = np.isfinite(sincos).all(axis=1) & valid_joint_angles_planar(
+            np.column_stack([theta1, theta2]), cfg
+        )
+        err_esn = np.where(valid_esn, np.linalg.norm(ee_esn - targets, axis=1) * 1000, np.nan)
+        results["esn"] = {"ee": ee_esn, "err_mm": err_esn, "valid": valid_esn}
 
     return results
 
@@ -227,7 +254,7 @@ def solve_3dof_all(
     z_prime = targets[:, 2] - cfg.L0
     theta1_ana = np.arctan2(targets[:, 1], targets[:, 0])  # 精确 θ1（解析）
 
-    def decode_3dof(sincos: np.ndarray) -> np.ndarray:
+    def decode_3dof(sincos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """从网络输出的 sin/cos 编码还原末端坐标。"""
         t2 = np.arctan2(sincos[:, 0], sincos[:, 1])
         t3 = np.arctan2(sincos[:, 2], sincos[:, 3])
@@ -235,7 +262,10 @@ def solve_3dof_all(
         z = cfg.L0 + cfg.L1 * np.sin(t2) + cfg.L2 * np.sin(t2 + t3)
         x = r * np.cos(theta1_ana)
         y = r * np.sin(theta1_ana)
-        return np.column_stack([x, y, z])
+        valid = np.isfinite(sincos).all(axis=1) & valid_joint_angles_3dof(
+            np.column_stack([theta1_ana, t2, t3]), cfg
+        )
+        return np.column_stack([x, y, z]), valid
 
     # ---- MLP ----
     if mlp_model is not None:
@@ -243,12 +273,12 @@ def solve_3dof_all(
         feat = np.column_stack([r_xy, z_prime]).astype(np.float32)
         with torch.no_grad():
             sincos = mlp_model(torch.from_numpy(feat)).numpy()
-        ee_mlp = decode_3dof(sincos)
-        err_mlp = np.linalg.norm(ee_mlp - targets, axis=1) * 1000
+        ee_mlp, valid_mlp = decode_3dof(sincos)
+        err_mlp = np.where(valid_mlp, np.linalg.norm(ee_mlp - targets, axis=1) * 1000, np.nan)
         results["mlp"] = {
             "ee": ee_mlp,
             "err_mm": err_mlp,
-            "valid": np.ones(N, bool),
+            "valid": valid_mlp,
             "targets_2d": np.column_stack([r_xy, z_prime]),
         }
 
@@ -258,9 +288,9 @@ def solve_3dof_all(
         feat = np.column_stack([r_xy, z_prime]).astype(np.float32)
         with torch.no_grad():
             sincos = esn_model(torch.from_numpy(feat)).numpy()
-        ee_esn = decode_3dof(sincos)
-        err_esn = np.linalg.norm(ee_esn - targets, axis=1) * 1000
-        results["esn"] = {"ee": ee_esn, "err_mm": err_esn, "valid": np.ones(N, bool)}
+        ee_esn, valid_esn = decode_3dof(sincos)
+        err_esn = np.where(valid_esn, np.linalg.norm(ee_esn - targets, axis=1) * 1000, np.nan)
+        results["esn"] = {"ee": ee_esn, "err_mm": err_esn, "valid": valid_esn}
 
     return results
 
@@ -297,7 +327,21 @@ def plot_ik_comparison(
         fontsize=26,
         fontweight="bold",
     )
-    gs = gridspec.GridSpec(2, 2, hspace=0.44, wspace=0.35)
+    legal_rates = " / ".join(
+        f"{label} {np.mean(results[key]['valid']) * 100:.1f}%"
+        for key, label in [("analytical", "解析"), ("mlp", "MLP"), ("esn", "ESN")]
+        if key in results
+    )
+    fig.text(
+        0.5, 0.915, f"误差仅统计合法解；合法解率：{legal_rates}",
+        ha="center", va="center", fontsize=18,
+    )
+    if is_3dof:
+        fig.text(
+            0.5, 0.875, "球壳广域压力测试：含正肘训练域外目标",
+            ha="center", va="center", fontsize=18,
+        )
+    gs = gridspec.GridSpec(2, 2, top=0.81 if is_3dof else 0.85, hspace=0.44, wspace=0.35)
 
     # ---- (a) 误差 CDF ----
     ax0 = fig.add_subplot(gs[0, 0])
@@ -462,7 +506,8 @@ def print_summary_ik(arm_label: str, results: dict) -> None:
     print(f"\n{'=' * 65}")
     print(f"  {arm_label} IK 误差对比（末端位置误差 mm；低→好）")
     print("=" * 65)
-    fmt = "  {:<22}  均值={:7.3f}mm  中位={:7.3f}mm  p95={:7.2f}mm  可达率={:.1f}%"
+    fmt = "  {:<22}  均值={:7.3f}mm  中位={:7.3f}mm  p95={:7.2f}mm  合法解率={:.1f}%"
+    print("  误差仅统计合法解；合法解率检查有限与关节限位，不代表精度成功率。")
     for key, label in [
         ("analytical", "解析 IK（基准）"),
         ("mlp", "MLP IK"),
@@ -473,9 +518,9 @@ def print_summary_ik(arm_label: str, results: dict) -> None:
         errs = results[key]["err_mm"]
         valid = results[key]["valid"]
         errs_v = errs[~np.isnan(errs)]
-        reach = valid.mean() * 100
+        reach = valid.mean() * 100 if len(valid) else 0.0
         if len(errs_v) == 0:
-            print(f"  {label:<22}  （无数据）")
+            print(f"  {label:<22}  合法解率={reach:.1f}%（无合法解，无法统计误差）")
             continue
         print(
             fmt.format(label, np.mean(errs_v), np.median(errs_v), np.percentile(errs_v, 95), reach)
@@ -608,6 +653,7 @@ if __name__ == "__main__":
 
         # 采样目标 + 求解
         print(f"[vis_ik] 采样 {args.n_test} 个 3DOF 目标点...")
+        print("[vis_ik] 球壳广域压力测试，包含正肘训练域外目标；不等同训练域内精度。")
         targets_3d = sample_targets_3dof(cfg3, args.n_test, seed=args.seed)
         results_3d = solve_3dof_all(targets_3d, cfg3, mlp3, esn3)
         print_summary_ik("3DOF", results_3d)

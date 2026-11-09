@@ -26,7 +26,8 @@
      θ3   = ±acos(D)
      θ2   = atan2(z', r) - atan2(L2*sin(θ3), L1 + L2*cos(θ3))
 
-注意：θ3 有两解（elbow-up / elbow-down），θ1 在 r→0 时退化（取 0）。
+注意：θ3 有两解（elbow-up / elbow-down）。常规分支超限时尝试负水平半径；
+θ1 在 r→0 时退化，取限位内最接近 0 的角度。
 """
 
 from dataclasses import dataclass
@@ -112,52 +113,13 @@ def inverse_kinematics_3dof(
     参数:
         target:   [X, Y, Z] 目标末端坐标
         cfg:      机械臂配置
-        elbow_up: True → θ3 > 0（肘部向上），False → θ3 < 0（肘部向下）
+        elbow_up: True 优先 θ3 >= 0，False 优先 θ3 <= 0；超限时尝试另一分支。
 
     返回:
         (theta1, theta2, theta3) 弧度；不可达返回 None。
     """
-    x, y, z = float(target[0]), float(target[1]), float(target[2])
-
-    # ---- 解耦 θ1（方位角）----
-    r_xy = np.sqrt(x**2 + y**2)
-    if r_xy < 1e-9:
-        # 目标在 Z 轴上，θ1 取 0（奇异配置）
-        theta1 = 0.0
-    else:
-        theta1 = float(np.arctan2(y, x))
-
-    # ---- 竖直平面 2-link IK（大臂+小臂）----
-    z_prime = z - cfg.L0  # 相对于底座旋转中心的高度
-    D = (r_xy**2 + z_prime**2 - cfg.L1**2 - cfg.L2**2) / (2.0 * cfg.L1 * cfg.L2)
-
-    if D < -1.0 - 1e-6 or D > 1.0 + 1e-6:
-        return None  # 目标超出工作空间
-
-    D = float(np.clip(D, -1.0, 1.0))
-    sin_t3 = np.sqrt(max(0.0, 1.0 - D**2))
-    if not elbow_up:
-        sin_t3 = -sin_t3
-    theta3 = float(np.arctan2(sin_t3, D))
-
-    k1 = cfg.L1 + cfg.L2 * D
-    k2 = cfg.L2 * sin_t3
-    theta2 = float(np.arctan2(z_prime, r_xy) - np.arctan2(k2, k1))
-    # 归一化 θ2 到 [-π, π]
-    theta2 = float(np.arctan2(np.sin(theta2), np.cos(theta2)))
-
-    # 检查关节角度是否在限制范围内
-    if not (cfg.theta2_min - 1e-4 <= theta2 <= cfg.theta2_max + 1e-4):
-        # 超限，尝试另一种解
-        sin_t3 = -sin_t3
-        theta3 = float(np.arctan2(sin_t3, D))
-        k2 = cfg.L2 * sin_t3
-        theta2 = float(np.arctan2(z_prime, r_xy) - np.arctan2(k2, k1))
-        theta2 = float(np.arctan2(np.sin(theta2), np.cos(theta2)))
-        if not (cfg.theta2_min - 1e-4 <= theta2 <= cfg.theta2_max + 1e-4):
-            return None
-
-    return (theta1, theta2, theta3)
+    result = _inverse_kinematics_3dof_array(np.asarray(target)[None, :], cfg, elbow_up)[0]
+    return tuple(float(angle) for angle in result) if np.isfinite(result).all() else None
 
 
 def inverse_kinematics_3dof_batch(
@@ -174,32 +136,42 @@ def inverse_kinematics_3dof_batch(
     返回:
         (N, 3) [θ1, θ2, θ3]，不可达点为 NaN
     """
-    x = targets[:, 0].astype(np.float64)
-    y = targets[:, 1].astype(np.float64)
-    z = targets[:, 2].astype(np.float64)
+    return _inverse_kinematics_3dof_array(np.asarray(targets), cfg, elbow_up).astype(np.float32)
 
-    # θ1
+
+def valid_joint_angles_3dof(angles: np.ndarray, cfg: Arm3DOFConfig) -> np.ndarray:
+    """检查输出是否有限且满足全部关节限位；容忍 float32 边界舍入。"""
+    angles = np.asarray(angles)
+    lower = np.array([cfg.theta1_min, cfg.theta2_min, cfg.theta3_min])
+    upper = np.array([cfg.theta1_max, cfg.theta2_max, cfg.theta3_max])
+    return np.all(np.isfinite(angles) & (angles >= lower - 1e-6) & (angles <= upper + 1e-6), axis=-1)
+
+
+def _inverse_kinematics_3dof_array(targets, cfg, elbow_up):
+    """单点和批量共用双精度求解，统一距离、限位与分支回退。"""
+    x, y, z = (targets[:, index].astype(np.float64) for index in range(3))
     r_xy = np.sqrt(x**2 + y**2)
-    theta1 = np.where(r_xy < 1e-9, 0.0, np.arctan2(y, x))
-
-    # 竖直平面
+    singular_yaw = np.clip(0.0, cfg.theta1_min, cfg.theta1_max)
+    theta1 = np.where(r_xy < 1e-9, singular_yaw, np.arctan2(y, x))
     z_prime = z - cfg.L0
     D = (r_xy**2 + z_prime**2 - cfg.L1**2 - cfg.L2**2) / (2.0 * cfg.L1 * cfg.L2)
-    valid = (D >= -1.0 - 1e-6) & (D <= 1.0 + 1e-6)
+    reachable = np.isfinite(targets).all(axis=1) & (D >= -1.0 - 1e-6) & (D <= 1.0 + 1e-6)
     D = np.clip(D, -1.0, 1.0)
-
-    sin_t3 = np.sqrt(np.maximum(0.0, 1.0 - D**2))
-    if not elbow_up:
-        sin_t3 = -sin_t3
-    theta3 = np.arctan2(sin_t3, D)
-
-    k1 = cfg.L1 + cfg.L2 * D
-    k2 = cfg.L2 * sin_t3
-    theta2 = np.arctan2(z_prime, r_xy) - np.arctan2(k2, k1)
-    theta2 = np.arctan2(np.sin(theta2), np.cos(theta2))  # 归一化
-
-    result = np.stack([theta1, theta2, theta3], axis=-1).astype(np.float32)
-    result[~valid] = np.nan
+    sine = np.sqrt(np.maximum(0.0, 1.0 - D**2))
+    result = np.full((len(targets), 3), np.nan)
+    preferred = 1.0 if elbow_up else -1.0
+    # 保留正半径的两肘分支优先级；仅无合法解时尝试手臂向后折的等价构型。
+    for radius, yaw in ((r_xy, theta1), (-r_xy, theta1 + np.pi), (-r_xy, theta1 - np.pi)):
+        if np.all(np.isfinite(result[:, 0]) | ~reachable):
+            break
+        for direction in (preferred, -preferred):
+            sin_t3 = direction * sine
+            theta3 = np.arctan2(sin_t3, D)
+            theta2 = np.arctan2(z_prime, radius) - np.arctan2(cfg.L2 * sin_t3, cfg.L1 + cfg.L2 * D)
+            theta2 = np.arctan2(np.sin(theta2), np.cos(theta2))
+            candidate = np.column_stack([yaw, theta2, theta3])
+            accept = reachable & valid_joint_angles_3dof(candidate, cfg) & np.isnan(result[:, 0])
+            result[accept] = candidate[accept]
     return result
 
 
