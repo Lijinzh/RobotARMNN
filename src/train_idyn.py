@@ -3,14 +3,18 @@
 
 训练策略：
     MLP（无记忆基线）：
-        输入当前帧 [q(t), dq(t)]，批量梯度下降，torch.compile 加速
+        输入当前参考帧 [q_des(t), dq_des(t)]，学习 PD 示教总力矩
 
     IDynESN（递归储层，有时序记忆）：
         1. 按轨迹切分序列，不跨轨迹截断（避免储层状态污染）
         2. 对每条轨迹递归预计算全序列储层状态 H（固定储层，无梯度）
         3. 对预热步 (warmup) 后的 H → τ 训练读出 MLP
-        4. 对照关键：ESN 的 H(t) 记住了运动历史，
-           MLP 的输入只有当前帧，无法区分正向/反向运动（摩擦迟滞方向）
+        4. 储层提供参考状态历史；速度输入本身已包含运动方向。
+           所有模型均学习 outputs 总命令，不能直接解释为摩擦残差。
+
+    统一按轨迹划分训练/验证，默认末尾 20% 轨迹用于验证。
+    默认前 100 步不参与训练损失或验证评分；输入仍可用于递归状态预热。
+    RNN 保留分块训练，验证按完整轨迹连续推理，匹配在线部署的状态协议。
 
 用法：
     uv run src/train_idyn.py --model mlp           # 训练 MLP 基线
@@ -20,9 +24,11 @@
 """
 
 import argparse
+import hashlib
 import os
 import sys
 import time
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -45,6 +51,63 @@ def tau_mae(pred: torch.Tensor, true: torch.Tensor) -> float:
     return float(pred.sub(true).abs().mean().item())
 
 
+def trajectory_split(traj_id, val_ratio):
+    """三个训练入口共用整轨迹划分，保留末尾轨迹作验证。"""
+    ids = np.unique(traj_id)
+    if len(ids) < 2 or not 0 < val_ratio < 1:
+        raise ValueError("整轨迹验证至少需要两条轨迹，验证比例须在 0 和 1 之间")
+    n_val = max(1, int(len(ids) * val_ratio))
+    return ids[:-n_val], ids[-n_val:]
+
+
+def loss_sample_mask(traj_id, warmup_steps):
+    """只屏蔽每条轨迹开头的预热段，不改变后续时间顺序。"""
+    if warmup_steps < 0:
+        raise ValueError("预热步数不能为负数")
+    mask = np.zeros(len(traj_id), dtype=bool)
+    for tid in np.unique(traj_id):
+        indices = np.flatnonzero(traj_id == tid)
+        if len(indices) <= warmup_steps:
+            raise ValueError(f"轨迹 {tid} 的长度必须大于预热步数 {warmup_steps}")
+        mask[indices[warmup_steps:]] = True
+    return mask
+
+
+def training_metadata(
+    raw, train_ids, validation_ids, warmup_steps, train_samples,
+    validation_samples, train_protocol, validation_protocol,
+):
+    return {
+        "task": "inverse_dynamics_feedforward", "target": "outputs",
+        "target_definition": "PD_teacher_total_torque_command_Nm",
+        "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+        "sampling_dt_seconds": float(raw["dt"]),
+        "label_version": int(raw["label_version"]) if "label_version" in raw else None,
+        "train_trajectory_ids": train_ids.tolist(),
+        "validation_trajectory_ids": validation_ids.tolist(),
+        "normalization": "all_training_trajectory_inputs_only",
+        "warmup_steps": warmup_steps,
+        "train_loss_samples": train_samples, "validation_loss_samples": validation_samples,
+        "train_protocol": train_protocol, "validation_protocol": validation_protocol,
+        "data_sha256": hashlib.sha256(Path(DATA_PATH).read_bytes()).hexdigest(),
+    }
+
+
+def evaluate_rnn_trajectories(model, sequences, warmup_steps):
+    """每条验证轨迹从零状态连续运行，只在预热后评分；不在块边界重置。"""
+    squared_error = 0.0
+    absolute_error = 0.0
+    elements = 0
+    with torch.no_grad():
+        for x, y in sequences:
+            prediction, _ = model(x)
+            error = prediction[warmup_steps:] - y[warmup_steps:]
+            squared_error += error.square().sum().item()
+            absolute_error += error.abs().sum().item()
+            elements += error.numel()
+    return squared_error / elements, absolute_error / elements
+
+
 # =====================================================================
 # Part 1：训练 IDynMLP（无记忆基线）
 # =====================================================================
@@ -56,8 +119,9 @@ def train_idyn_mlp(
     lr: float = 3e-4,
     hidden_dim: int = 256,
     n_layers: int = 4,
-    val_ratio: float = 0.1,
+    val_ratio: float = 0.2,
     device_str: str = "auto",
+    warmup_steps: int = 100,
 ) -> IDynMLP:
     """
     训练逆动力学 MLP（无记忆基线）。
@@ -81,23 +145,24 @@ def train_idyn_mlp(
 
     raw = np.load(DATA_PATH)
     X_all = torch.from_numpy(raw["inputs"]).to(device)  # (N, 6) [q_des, dq_des]
-    # 使用高质量 PD 标签（KP_DATA=300 确保 <0.1° 跟踪误差，含重力/Coulomb摩擦/阻尼）
+    # PD 示教总命令，不是纯摩擦或精确逆动力学真值。
     label_key = "outputs"
     Y_all = torch.from_numpy(raw[label_key].astype(np.float32)).to(device)  # (N, 3) τ
 
-    n_total = len(X_all)
-    n_val = int(n_total * val_ratio)
-    perm = torch.randperm(
-        n_total, device=device, generator=torch.Generator(device=device).manual_seed(42)
-    )
-    ti, vi = perm[: n_total - n_val], perm[n_total - n_val :]
+    traj_id = raw["traj_id"]
+    train_ids, validation_ids = trajectory_split(traj_id, val_ratio)
+    valid = loss_sample_mask(traj_id, warmup_steps)
+    train_mask = np.isin(traj_id, train_ids)
+    ti = torch.as_tensor(np.flatnonzero(train_mask & valid), device=device)
+    vi = torch.as_tensor(np.flatnonzero(~train_mask & valid), device=device)
     X_tr, Y_tr = X_all[ti], Y_all[ti]
     X_v, Y_v = X_all[vi], Y_all[vi]
-    print(f"[IDynMLP] 训练: {len(ti):,}  验证: {n_val:,}")
+    print(f"[IDynMLP] 训练: {len(ti):,}  验证: {len(vi):,}")
 
     # ---- 模型 ----
     model = IDynMLP(n_joints=3, hidden_dim=hidden_dim, n_layers=n_layers).to(device)
-    model.set_input_stats(X_tr)
+    # 与递归模型一致，统计量来自训练轨迹的全部输入，包含只用于预热的输入。
+    model.set_input_stats(X_all[torch.as_tensor(train_mask, device=device)])
     print(f"[IDynMLP] 参数量: {count_parameters(model):,}")
     compiled = torch.compile(model)
 
@@ -108,7 +173,7 @@ def train_idyn_mlp(
         opt,
         [
             torch.optim.lr_scheduler.LinearLR(opt, 0.01, 1.0, warm),
-            torch.optim.lr_scheduler.CosineAnnealingLR(opt, epochs - warm),
+            torch.optim.lr_scheduler.CosineAnnealingLR(opt, max(1, epochs - warm)),
         ],
         milestones=[warm],
     )
@@ -116,6 +181,10 @@ def train_idyn_mlp(
     os.makedirs(CKPT_DIR, exist_ok=True)
     best_ckpt = os.path.join(CKPT_DIR, "idyn_3dof_mlp_best.pt")
     best_loss = float("inf")
+    metadata = training_metadata(
+        raw, train_ids, validation_ids, warmup_steps, len(ti), len(vi),
+        "frames_after_warmup", "frames_after_warmup",
+    )
     t0 = time.time()
     n_tr = len(ti)
 
@@ -141,7 +210,7 @@ def train_idyn_mlp(
             ve = tau_mae(vp, Y_v)
         if vl < best_loss:
             best_loss = vl
-            model.save(best_ckpt)
+            model.save(best_ckpt, metadata=metadata)
 
         if ep % 50 == 0 or ep <= 5:
             print(
@@ -183,8 +252,7 @@ def train_idyn_esn(
         3. 截掉 warmup 步后的 (H, τ) 对打包成 mini-batch
         4. 仅训练 readout MLP（梯度不回传到 Win/Wres）
 
-    关键：H(t) = tanh(Win@x(t) + Wres@H(t-1)) 记住了运动方向历史，
-    因此 readout 在预测摩擦力矩时，能知道"从哪个方向来"。
+    储层历史可能帮助表达动态；当前目标是 PD 示教总命令，不是摩擦残差。
     """
     device = (
         torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -204,13 +272,12 @@ def train_idyn_esn(
 
     raw = np.load(DATA_PATH)
     X_np = raw["inputs"].astype(np.float32)  # (N, 6)
-    label_key = "outputs"  # 高质量 PD 标签（含 Coulomb 摩擦）
+    label_key = "outputs"  # PD 示教总命令
     Y_np = raw[label_key].astype(np.float32)  # (N, 3)
     traj_id = raw["traj_id"]  # (N,)
-    n_traj = int(raw["n_traj"])
-    n_val_traj = max(1, int(n_traj * val_traj_ratio))
-    n_tr_traj = n_traj - n_val_traj
-    print(f"[IDynESN] 轨迹: 训练 {n_tr_traj}  验证 {n_val_traj}")
+    train_ids, validation_ids = trajectory_split(traj_id, val_traj_ratio)
+    loss_sample_mask(traj_id, warmup_steps)  # 提前检查预热后仍有有效样本。
+    print(f"[IDynESN] 轨迹: 训练 {len(train_ids)}  验证 {len(validation_ids)}")
 
     def get_traj_data(traj_indices):
         """提取指定轨迹的完整序列列表"""
@@ -220,8 +287,8 @@ def train_idyn_esn(
             seqs.append((X_np[mask], Y_np[mask]))
         return seqs
 
-    tr_seqs = get_traj_data(range(n_tr_traj))
-    val_seqs = get_traj_data(range(n_tr_traj, n_traj))
+    tr_seqs = get_traj_data(train_ids)
+    val_seqs = get_traj_data(validation_ids)
 
     # ---- 构建模型 ----
     esn = IDynESN(
@@ -275,6 +342,10 @@ def train_idyn_esn(
     os.makedirs(CKPT_DIR, exist_ok=True)
     best_ckpt = os.path.join(CKPT_DIR, "idyn_3dof_esn_best.pt")
     best_loss = float("inf")
+    metadata = training_metadata(
+        raw, train_ids, validation_ids, warmup_steps, len(H_tr), len(H_v),
+        "continuous_reservoir_after_warmup", "continuous_trajectory_after_warmup",
+    )
     t0 = time.time()
     n_tr_samples = len(H_tr)
 
@@ -300,7 +371,7 @@ def train_idyn_esn(
             ve = tau_mae(vp, Y_v)
         if vl < best_loss - 1e-5:  # min_delta：避免每 epoch 都写磁盘
             best_loss = vl
-            esn.save(best_ckpt)
+            esn.save(best_ckpt, metadata=metadata)
 
         if ep % 50 == 0 or ep <= 5:
             print(
@@ -327,11 +398,12 @@ def train_idyn_rnn(
     hidden_dim: int = 256,
     n_layers: int = 2,
     epochs: int = 300,
-    seq_len: int = 200,  # 每块长度（步）；摩擦迟滞时间尺度 < 0.4s = 200步
+    seq_len: int = 200,  # 每块长度（步），控制 BPTT 计算量
     batch_size: int = 256,  # 预切块后大批量训练，榨干 GPU
     lr: float = 1e-3,
     val_traj_ratio: float = 0.2,
     device_str: str = "auto",
+    warmup_steps: int = 100,
 ) -> "IDynLSTM | IDynGRU":
     """
     训练逆动力学 LSTM 或 GRU — 批量切块训练（速度最优）。
@@ -341,7 +413,8 @@ def train_idyn_rnn(
         新方案：预切块 → (N_chunks, seq_len, 6)，batch_size=256
             → 每 epoch 仅 ~2 次反向传播，GPU 利用率接近 100%，速度提升 ~100×
 
-        stateless LSTM：每批从零隐状态开始，对于摩擦迟滞（时间尺度 <200步）影响极小。
+        每个训练块从零隐状态开始；不声称这与完整连续训练等价。
+        全局启动段不计训练损失；验证按整条轨迹连续推理并排除相同启动段。
     """
     assert model_type in ("lstm", "gru"), f"model_type 须为 lstm/gru，得到 {model_type}"
     tag = f"IDyn{model_type.upper()}"
@@ -363,30 +436,37 @@ def train_idyn_rnn(
 
     raw = np.load(DATA_PATH)
     X_np = raw["inputs"].astype(np.float32)
-    label_key = "outputs"  # 高质量 PD 标签（含 Coulomb 摩擦）
+    label_key = "outputs"  # PD 示教总命令，不是摩擦残差
     Y_np = raw[label_key].astype(np.float32)
     traj_id = raw["traj_id"]
     n_traj = int(raw["n_traj"])
     print(f"[{tag}] 标签: {label_key}  轨迹数: {n_traj}")
 
-    n_val_traj = max(1, int(n_traj * val_traj_ratio))
-    n_tr_traj = n_traj - n_val_traj
-    print(f"[{tag}] 轨迹: 训练 {n_tr_traj}  验证 {n_val_traj}")
+    train_ids, validation_ids = trajectory_split(traj_id, val_traj_ratio)
+    loss_sample_mask(traj_id, warmup_steps)
+    print(f"[{tag}] 轨迹: 训练 {len(train_ids)}  验证 {len(validation_ids)}")
 
-    tr_seqs = [(X_np[traj_id == i], Y_np[traj_id == i]) for i in range(n_tr_traj)]
-    val_seqs = [(X_np[traj_id == i], Y_np[traj_id == i]) for i in range(n_tr_traj, n_traj)]
+    tr_seqs = [(X_np[traj_id == i], Y_np[traj_id == i]) for i in train_ids]
+    val_seqs = [(X_np[traj_id == i], Y_np[traj_id == i]) for i in validation_ids]
 
     # ---- 预切块：所有训练轨迹 → (N_chunks, seq_len, dim) ----
     # 每条轨迹均匀切块（末尾不足 seq_len 的丢弃），保证批次内长度一致
-    X_chunks, Y_chunks = [], []
+    X_chunks, Y_chunks, loss_masks = [], [], []
     for X_seq, Y_seq in tr_seqs:
         T = len(X_seq)
         for start in range(0, T - seq_len + 1, seq_len):
+            mask = np.arange(start, start + seq_len) >= warmup_steps
+            if not mask.any():
+                continue
             X_chunks.append(X_seq[start : start + seq_len])
             Y_chunks.append(Y_seq[start : start + seq_len])
+            loss_masks.append(mask)
 
+    if not X_chunks:
+        raise ValueError("预热和序列切块后没有训练样本，请缩短 seq_len 或 warmup_steps")
     X_tr = torch.from_numpy(np.stack(X_chunks)).to(device)  # (N_chunks, seq_len, 6)
     Y_tr = torch.from_numpy(np.stack(Y_chunks)).to(device)  # (N_chunks, seq_len, 3)
+    loss_mask = torch.from_numpy(np.stack(loss_masks)).to(device)
     n_chunks = len(X_tr)
     iters_per_ep = (n_chunks + batch_size - 1) // batch_size
     print(
@@ -394,17 +474,14 @@ def train_idyn_rnn(
         f"batch={batch_size}  → {iters_per_ep} iter/epoch"
     )
 
-    X_val_chunks, Y_val_chunks = [], []
-    for X_seq, Y_seq in val_seqs:
-        T = len(X_seq)
-        for start in range(0, T - seq_len + 1, seq_len):
-            X_val_chunks.append(X_seq[start : start + seq_len])
-            Y_val_chunks.append(Y_seq[start : start + seq_len])
-    X_v = torch.from_numpy(np.stack(X_val_chunks)).to(device)
-    Y_v = torch.from_numpy(np.stack(Y_val_chunks)).to(device)
+    # 验证保留完整轨迹和尾部，匹配在线连续隐状态；只在轨迹开头重置。
+    validation_tensors = [
+        (torch.from_numpy(x).to(device), torch.from_numpy(y).to(device))
+        for x, y in val_seqs
+    ]
 
     # ---- 构建模型 ----
-    X_tr_flat = X_tr.reshape(-1, X_tr.shape[-1])
+    X_tr_flat = torch.from_numpy(np.concatenate([x for x, _ in tr_seqs])).to(device)
     ModelClass = IDynLSTM if model_type == "lstm" else IDynGRU
     model = ModelClass(n_joints=3, hidden_dim=hidden_dim, n_layers=n_layers).to(device)
     model.set_input_stats(X_tr_flat)
@@ -416,7 +493,7 @@ def train_idyn_rnn(
         opt,
         [
             torch.optim.lr_scheduler.LinearLR(opt, 0.1, 1.0, warm),
-            torch.optim.lr_scheduler.CosineAnnealingLR(opt, epochs - warm),
+            torch.optim.lr_scheduler.CosineAnnealingLR(opt, max(1, epochs - warm)),
         ],
         milestones=[warm],
     )
@@ -424,6 +501,13 @@ def train_idyn_rnn(
     os.makedirs(CKPT_DIR, exist_ok=True)
     best_ckpt = os.path.join(CKPT_DIR, f"idyn_3dof_{model_type}_best.pt")
     best_loss = float("inf")
+    metadata = training_metadata(
+        raw, train_ids, validation_ids, warmup_steps, int(loss_mask.sum().item()),
+        sum(len(y) - warmup_steps for _, y in val_seqs),
+        "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+        "continuous_trajectory_after_warmup",
+    )
+    metadata["training_chunk_steps"] = seq_len
     t0 = time.time()
 
     for ep in range(1, epochs + 1):
@@ -438,7 +522,8 @@ def train_idyn_rnn(
 
             # stateless：每批从零初始化（无跨块状态传递）
             tau_pred, _ = model(x_b)
-            loss = nn.functional.mse_loss(tau_pred, y_b)
+            mask = loss_mask[idx]
+            loss = nn.functional.mse_loss(tau_pred[mask], y_b[mask])
             opt.zero_grad(set_to_none=True)
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -449,15 +534,11 @@ def train_idyn_rnn(
         sched.step()
 
         model.eval()
-        with torch.no_grad():
-            vp_list = [model(X_v[s : s + batch_size])[0] for s in range(0, len(X_v), batch_size)]
-            vp = torch.cat(vp_list, dim=0)
-            vl = nn.functional.mse_loss(vp, Y_v).item()
-            ve = tau_mae(vp, Y_v)
+        vl, ve = evaluate_rnn_trajectories(model, validation_tensors, warmup_steps)
 
         if vl < best_loss - 1e-5:
             best_loss = vl
-            model.save(best_ckpt)
+            model.save(best_ckpt, metadata=metadata)
 
         if ep % 50 == 0 or ep <= 5:
             print(
@@ -467,9 +548,7 @@ def train_idyn_rnn(
 
     model = ModelClass.load(best_ckpt, map_location=device)
     model.to(device).eval()
-    with torch.no_grad():
-        vp_list = [model(X_v[s : s + batch_size])[0] for s in range(0, len(X_v), batch_size)]
-        fe = tau_mae(torch.cat(vp_list), Y_v)
+    _, fe = evaluate_rnn_trajectories(model, validation_tensors, warmup_steps)
     print(f"[{tag}] 完成！验证 MAE: {fe:.4f} N·m  →  {best_ckpt}")
     return model
 
@@ -478,7 +557,7 @@ def train_idyn_rnn(
 # 主入口
 # =====================================================================
 
-if __name__ == "__main__":
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="逆动力学模型训练（MLP vs 递归 ESN vs LSTM vs GRU）"
     )
@@ -489,7 +568,10 @@ if __name__ == "__main__":
         default=1000,
         help="手动指定训练轮数（0 = 用默认值：MLP 500 / ESN 300）",
     )
-    parser.add_argument("--batch_size", type=int, default=65536)
+    parser.add_argument(
+        "--batch_size", type=int, default=None,
+        help="每批样本数（默认 MLP/ESN 65536，LSTM/GRU 256）",
+    )
     parser.add_argument(
         "--lr", type=float, default=0.0, help="学习率（0 = 用默认值：MLP 3e-4 / ESN 1e-3）"
     )
@@ -501,9 +583,12 @@ if __name__ == "__main__":
         "--spectral_radius", type=float, default=0.9, help="Wres 谱半径（0.5~0.99，越大记忆越长）"
     )
     parser.add_argument(
-        "--warmup", type=int, default=100, help="ESN warmup 步数（预热储层状态，不用于训练）"
+        "--warmup", type=int, default=100,
+        help="所有模型每条轨迹开头不计损失和评分的步数（默认 100）",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    if args.batch_size is not None and args.batch_size <= 0:
+        parser.error("--batch_size 必须为正数")
 
     models = ["mlp", "esn", "lstm", "gru"] if args.model == "all" else [args.model]
 
@@ -516,10 +601,11 @@ if __name__ == "__main__":
             lr = args.lr if args.lr > 0 else 3e-4
             train_idyn_mlp(
                 epochs=ep,
-                batch_size=args.batch_size,
+                batch_size=args.batch_size if args.batch_size is not None else 65536,
                 lr=lr,
                 hidden_dim=args.hidden_dim,
                 n_layers=args.n_layers,
+                warmup_steps=args.warmup,
             )
         elif m == "esn":
             ep = args.epochs if args.epochs > 0 else 300
@@ -529,7 +615,7 @@ if __name__ == "__main__":
                 readout_hidden=args.readout_hidden,
                 spectral_radius=args.spectral_radius,
                 epochs=ep,
-                batch_size=args.batch_size,
+                batch_size=args.batch_size if args.batch_size is not None else 65536,
                 lr=lr,
                 warmup_steps=args.warmup,
             )
@@ -542,4 +628,10 @@ if __name__ == "__main__":
                 n_layers=args.n_layers,
                 epochs=ep,
                 lr=lr,
+                batch_size=args.batch_size if args.batch_size is not None else 256,
+                warmup_steps=args.warmup,
             )
+
+
+if __name__ == "__main__":
+    main()

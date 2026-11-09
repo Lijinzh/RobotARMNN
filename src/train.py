@@ -14,9 +14,11 @@ GPU 加速策略（RTX 4090 专项）：
 """
 
 import argparse
+import hashlib
 import os
 import sys
 import time
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -133,7 +135,7 @@ def train_mlp(
         opt,
         [
             torch.optim.lr_scheduler.LinearLR(opt, 0.01, 1.0, warm),
-            torch.optim.lr_scheduler.CosineAnnealingLR(opt, epochs - warm),
+            torch.optim.lr_scheduler.CosineAnnealingLR(opt, max(1, epochs - warm)),
         ],
         milestones=[warm],
     )
@@ -141,6 +143,14 @@ def train_mlp(
     os.makedirs(CKPT_DIR, exist_ok=True)
     best_ckpt = os.path.join(CKPT_DIR, f"ik_{arm}_mlp_best.pt")
     best_loss = float("inf")
+    metadata = {
+        "task": "inverse_kinematics", "arm": arm,
+        "input_definition": "[r_xy, z-L0]" if arm == "3dof" else "[x, y]",
+        "target": "outputs_vert" if arm == "3dof" else "outputs",
+        "target_definition": "joint_angle_sin_cos", "normalization": "training_only",
+        "split_seed": 42, "train_samples": len(ti), "validation_samples": len(vi),
+        "data_sha256": hashlib.sha256(Path(data_path).read_bytes()).hexdigest(),
+    }
     t0 = time.time()
     n_tr = len(ti)
 
@@ -166,7 +176,7 @@ def train_mlp(
             ve = angle_error_deg(vp, A_v)
         if vl < best_loss:
             best_loss = vl
-            model.save(best_ckpt)
+            model.save(best_ckpt, metadata=metadata)
 
         if ep % 50 == 0 or ep <= 5:
             print(
@@ -257,7 +267,7 @@ def train_esn(
     ).to(device)
 
     # 设置归一化参数
-    esn.set_input_stats(X_all)
+    esn.set_input_stats(X_tr)
 
     # ---- 一次性预计算全量储备池激活 H（核心优化）----
     print(f"[ESN-{arm}] 预计算储备池激活 (reservoir_dim={reservoir_dim})...")
@@ -274,6 +284,14 @@ def train_esn(
     os.makedirs(CKPT_DIR, exist_ok=True)
     best_ckpt = os.path.join(CKPT_DIR, f"ik_{arm}_esn_best.pt")
     best_loss = float("inf")
+    metadata = {
+        "task": "inverse_kinematics", "arm": arm,
+        "input_definition": "[r_xy, z-L0]" if arm == "3dof" else "[x, y]",
+        "target": "outputs_vert" if arm == "3dof" else "outputs",
+        "target_definition": "joint_angle_sin_cos", "normalization": "training_only",
+        "split_seed": 42, "train_samples": len(ti), "validation_samples": len(vi),
+        "data_sha256": hashlib.sha256(Path(data_path).read_bytes()).hexdigest(),
+    }
     t0 = time.time()
     n_tr = len(ti)
 
@@ -299,7 +317,7 @@ def train_esn(
             ve = angle_error_deg(vp, A_v)
         if vl < best_loss:
             best_loss = vl
-            esn.save(best_ckpt)
+            esn.save(best_ckpt, metadata=metadata)
 
         if ep % 50 == 0 or ep <= 5:
             print(
@@ -308,7 +326,7 @@ def train_esn(
             )
 
     final_esn = IKNN_ESN.load(best_ckpt).to(device)
-    final_esn.set_input_stats(X_all)  # 恢复归一化参数
+    # 输入统计量已经随最佳 checkpoint 保存，不再用验证数据重新估计。
     final_esn.eval()
     with torch.no_grad():
         H_v_final = final_esn.precompute_features(X_v)

@@ -12,8 +12,8 @@
   IDynESN    — 逆动力学递归 ESN（有时序记忆）
                  H(t) = tanh(Win@x(t) + Wres@H(t-1))
                  τ(t) = readout(H(t))
-                 Wres 谱半径 < 1 保证 Echo State Property（回声状态条件）
-                 迟滞摩擦必须知道"从哪个方向来"，ESN 天然记住运动历史
+                 Wres 通常取谱半径 < 1，具体状态收敛仍需验证
+                 储层提供参考状态历史，当前训练目标为 PD 示教总命令
   CurrentNN  — 电流控制 MLP（供 ESP32 部署）
 
 sin/cos 输出设计：
@@ -87,7 +87,7 @@ class IKNN_MLP(nn.Module):
             dim=-1,
         )
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, metadata: dict | None = None) -> None:
         """保存至 .pt（含架构配置 + 权重，与 IKNN_ESN 格式一致）。"""
         n_layers = (len(self.net) - 1) // 2
         torch.save(
@@ -99,6 +99,7 @@ class IKNN_MLP(nn.Module):
                     "n_layers": n_layers,
                 },
                 "state_dict": self.state_dict(),
+                "metadata": metadata if metadata is not None else getattr(self, "training_metadata", {}),
             },
             path,
         )
@@ -115,6 +116,7 @@ class IKNN_MLP(nn.Module):
             input_dim = next(iter(ckpt.values())).shape[-1] if ckpt else 2
             model = cls(input_dim=2, hidden_dim=256, output_dim=4)
             model.load_state_dict(ckpt)
+        model.training_metadata = ckpt.get("metadata", {})
         return model
 
 
@@ -209,7 +211,7 @@ class IKNN_ESN(nn.Module):
             axis=-1,
         ).astype(np.float32)
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, metadata: dict | None = None) -> None:
         """保存到 .pt（含架构配置 + 权重）"""
         torch.save(
             {
@@ -220,6 +222,7 @@ class IKNN_ESN(nn.Module):
                     "output_dim": self.output_dim,
                 },
                 "state_dict": self.state_dict(),
+                "metadata": metadata if metadata is not None else getattr(self, "training_metadata", {}),
             },
             path,
         )
@@ -232,6 +235,7 @@ class IKNN_ESN(nn.Module):
         esn = cls(**ckpt["config"])
         esn.load_state_dict(ckpt["state_dict"])
         print(f"[IKNN_ESN] 已从 {path} 加载")
+        esn.training_metadata = ckpt.get("metadata", {})
         return esn
 
 
@@ -275,8 +279,8 @@ class IDynMLP(nn.Module):
     """
     逆动力学 MLP — 无记忆对照组。
 
-    只看当前帧 [q(t), dq(t)] 预测所需关节力矩 τ(t)。
-    无法建模摩擦迟滞（不知道从哪个方向运动而来），作为 ESN 的对照基线。
+    只看当前参考帧 [q_des(t), dq_des(t)] 预测前馈力矩 τ(t)。
+    当前速度已包含运动方向；本模型不显式读取历史或加速度，作为递归模型的对照。
 
     输入: (batch, n_joints*2)  — [q1,q2,q3, dq1,dq2,dq3]
     输出: (batch, n_joints)    — [τ1, τ2, τ3]
@@ -312,7 +316,7 @@ class IDynMLP(nn.Module):
         """(batch, n_joints*2) → (batch, n_joints)"""
         return self.net((x - self.x_mean) / self.x_std)
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, metadata: dict | None = None) -> None:
         torch.save(
             {
                 "config": {
@@ -321,6 +325,7 @@ class IDynMLP(nn.Module):
                     "n_layers": (len(self.net) - 1) // 2,
                 },
                 "state_dict": self.state_dict(),
+                "metadata": metadata if metadata is not None else getattr(self, "training_metadata", {}),
             },
             path,
         )
@@ -330,6 +335,7 @@ class IDynMLP(nn.Module):
         ckpt = torch.load(path, map_location=map_location, weights_only=False)
         model = cls(**ckpt["config"])
         model.load_state_dict(ckpt["state_dict"])
+        model.training_metadata = ckpt.get("metadata", {})
         return model
 
 
@@ -346,16 +352,16 @@ class IDynESN(nn.Module):
         H(t) = tanh(Win @ x(t) + Wres @ H(t-1) + b_in)
         τ(t) = readout(H(t))
 
-    为什么比 MLP 更适合逆动力学（含摩擦迟滞）：
-        摩擦迟滞取决于前一步运动方向，ESN 的 H(t) 记住了这段历史，
-        MLP 只看 x(t) = [q(t), dq(t)]，无法区分"从正方向来"还是"从负方向来"。
+    储层提供参考状态历史，可能帮助估计未显式输入的加速度或其他动态。
+    当前速度已经包含方向；能否改善摩擦补偿，需要与相同任务的静态模型实验比较。
+    当前训练脚本学习 PD 示教总力矩，不是单独的摩擦残差。
 
     关键超参：
-        spectral_radius < 1  保证 Echo State Property（储层状态唯一由输入决定）
+        spectral_radius < 1  是常用的储层设置，本身不构成所有输入下的收敛保证
         spectral_radius ≈ 0.9 记忆较长；≈ 0.5 遗忘较快
         sparsity ≈ 0.9       Wres 90% 稀疏，接近真实神经网络连接稀疏性
 
-    输入: x(t) = [q(t), dq(t)]  (n_joints*2 维，逐步输入)
+    输入: x(t) = [q_des(t), dq_des(t)]  (n_joints*2 维，逐步输入)
     输出: τ(t)                   (n_joints 维)
 
     训练策略（固定储层，只训练读出）：
@@ -393,6 +399,7 @@ class IDynESN(nn.Module):
         sr = np.max(np.abs(eigvals))
         if sr > 1e-8:
             Wres *= spectral_radius / sr  # 缩放到目标谱半径
+        self.spectral_radius = float(spectral_radius) if sr > 1e-8 else 0.0
 
         self.register_buffer("Win", torch.from_numpy(Win))
         self.register_buffer("Wres", torch.from_numpy(Wres))
@@ -497,16 +504,17 @@ class IDynESN(nn.Module):
         """返回零初始化的储层状态"""
         return torch.zeros(batch_size, self.reservoir_dim, device=self.Win.device)
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, metadata: dict | None = None) -> None:
         torch.save(
             {
                 "config": {
                     "n_joints": self.n_joints,
                     "reservoir_dim": self.reservoir_dim,
                     "readout_hidden": self.readout[0].out_features,
-                    "spectral_radius": float((self.Wres.abs().max()).item()),  # 近似记录
+                    "spectral_radius": self.spectral_radius,
                 },
                 "state_dict": self.state_dict(),
+                "metadata": metadata if metadata is not None else getattr(self, "training_metadata", {}),
             },
             path,
         )
@@ -522,7 +530,12 @@ class IDynESN(nn.Module):
             readout_hidden=cfg["readout_hidden"],
         )
         model.load_state_dict(ckpt["state_dict"])
+        # 旧文件的 config 可能记录了最大元素；只在加载后重算一次真实谱半径。
+        model.spectral_radius = float(
+            np.max(np.abs(np.linalg.eigvals(model.Wres.detach().cpu().numpy())))
+        )
         print(f"[IDynESN] 已从 {path} 加载")
+        model.training_metadata = ckpt.get("metadata", {})
         return model
 
 
@@ -536,9 +549,9 @@ class IDynLSTM(nn.Module):
     逆动力学 LSTM — 全参数可训练的门控记忆网络。
 
     相比 ESN（固定储层）的优势：
-        - 遗忘门可主动学会"记住速度方向"，忘掉无关历史
+        - 遗忘门可以选择保留参考状态历史
         - 全参数可训练（BPTT），容量远大于 ESN 固定读出
-        - 输入门 / 遗忘门 / 输出门三重门控，更精确建模摩擦迟滞动态
+        - 门控是否改善给定动力学任务，需要用统一划分和指标评估
 
     网络结构：
         x(t) → [归一化] → LSTM(n_layers, hidden_dim) → Linear → τ(t)
@@ -623,7 +636,7 @@ class IDynLSTM(nn.Module):
         c = torch.zeros(self.n_layers, batch_size, self.hidden_dim, device=dev)
         return (h, c)
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, metadata: dict | None = None) -> None:
         torch.save(
             {
                 "config": {
@@ -632,6 +645,7 @@ class IDynLSTM(nn.Module):
                     "n_layers": self.n_layers,
                 },
                 "state_dict": self.state_dict(),
+                "metadata": metadata if metadata is not None else getattr(self, "training_metadata", {}),
             },
             path,
         )
@@ -642,6 +656,7 @@ class IDynLSTM(nn.Module):
         model = cls(**ckpt["config"])
         model.load_state_dict(ckpt["state_dict"])
         print(f"[IDynLSTM] 已从 {path} 加载")
+        model.training_metadata = ckpt.get("metadata", {})
         return model
 
 
@@ -721,7 +736,7 @@ class IDynGRU(nn.Module):
         dev = self.x_mean.device
         return torch.zeros(self.n_layers, batch_size, self.hidden_dim, device=dev)
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, metadata: dict | None = None) -> None:
         torch.save(
             {
                 "config": {
@@ -730,6 +745,7 @@ class IDynGRU(nn.Module):
                     "n_layers": self.n_layers,
                 },
                 "state_dict": self.state_dict(),
+                "metadata": metadata if metadata is not None else getattr(self, "training_metadata", {}),
             },
             path,
         )
@@ -740,6 +756,7 @@ class IDynGRU(nn.Module):
         model = cls(**ckpt["config"])
         model.load_state_dict(ckpt["state_dict"])
         print(f"[IDynGRU] 已从 {path} 加载")
+        model.training_metadata = ckpt.get("metadata", {})
         return model
 
 
