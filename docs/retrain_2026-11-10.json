@@ -1,0 +1,5170 @@
+{
+  "generated_at": "2026-11-10T01:10:46.605355+08:00",
+  "source_commit_before_retraining": "e0156469241290081b19bc7c1c72d9c76d9365c7",
+  "cuda_version": "13.0",
+  "cudnn_version": 91900,
+  "training": {
+    "started_at": "2026-11-10T00:48:32.000597+08:00",
+    "seed_per_model": 42,
+    "device": "NVIDIA GeForce RTX 4090",
+    "torch_version": "2.11.0+cu130",
+    "numpy_version": "2.2.6",
+    "torch_compile_enabled": true,
+    "source_sha256": {
+      "src/models.py": "bce8a363f7d3c999be38cbf30ae0447cdac289468a7b5f98d538385759d55e52",
+      "src/train.py": "eaf39b5adeac0d56b42d5a6af40f81a5b972d367811e3e8f8ccfea4d0a65a2b3",
+      "src/train_idyn.py": "0d90d5867dc04e117c2a585ab90e64372cf68c62a91dac341dacb7984ebeb001"
+    },
+    "data_sha256": {
+      "ik_2dof.npz": "0e102d79695ca54621596ee652d8a69ebb6570bfe114b0e73e86ca5ae2afbd8b",
+      "ik_3dof.npz": "590064ffba5da51f4b8b93897f0e90e05891de05d53953a230e4733fb9401655",
+      "idyn_3dof.npz": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021"
+    },
+    "archive_sha256": {
+      "idyn_3dof_esn_best.pt": "d5e38f4102ac79a3325da415c17a745dc51c850b32915680de93f47df282758d",
+      "idyn_3dof_gru_best.pt": "cf7a5798115ee842ed9388fc1b688ed9bcaa68a83821ac5090ad1bdaff76152c",
+      "idyn_3dof_lstm_best.pt": "771e8834e04df50f66c309bc970b3c9d7afb59fa53db0d6f531804887e0ac3e6",
+      "idyn_3dof_mlp_best.pt": "c1c90b0c0ce0fe33befa202c794e54b746d5a9d22dabe327242658af0649f90a",
+      "ik_2dof_esn_best.pt": "fdf8d2203f724085318923a29b23bc7fb337a0a7ddc91cc3edaf55dbb8c3e309",
+      "ik_2dof_mlp_best.pt": "cf5e1c74de5dab74b745572ac9fde097fd97660b496af78c2a29765b19a3bf49",
+      "ik_3dof_esn_best.pt": "8b2748544d043a1c97da3faea7394d18f3eb403c234ef1affa99b0897128e4d8",
+      "ik_3dof_mlp_best.pt": "73e6f27d071b47d002c833b435db5fb75f1565d3a6f33409b2231d8720c5232f"
+    },
+    "runs": [
+      {
+        "model": "ik_2dof_mlp",
+        "arguments": {
+          "arm": "2dof",
+          "epochs": 500,
+          "batch_size": 65536,
+          "lr": 0.0003,
+          "hidden_dim": 256,
+          "n_layers": 3,
+          "device_str": "cuda"
+        },
+        "elapsed_seconds": 14.131773304019589,
+        "peak_gpu_allocated_MiB": 448.52587890625,
+        "checkpoint_sha256": "05580ca2897a223e3d52235e3abc630c94cc25c158301f92f7d0bb7302a1285c",
+        "metadata": {
+          "task": "inverse_kinematics",
+          "arm": "2dof",
+          "input_definition": "[x, y]",
+          "target": "outputs",
+          "target_definition": "joint_angle_sin_cos",
+          "normalization": "training_only",
+          "split_seed": 42,
+          "train_samples": 450000,
+          "validation_samples": 50000,
+          "data_sha256": "0e102d79695ca54621596ee652d8a69ebb6570bfe114b0e73e86ca5ae2afbd8b",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "arm": "2dof",
+            "epochs": 500,
+            "batch_size": 65536,
+            "lr": 0.0003,
+            "hidden_dim": 256,
+            "n_layers": 3,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        }
+      },
+      {
+        "model": "ik_2dof_esn",
+        "arguments": {
+          "arm": "2dof",
+          "epochs": 300,
+          "batch_size": 65536,
+          "lr": 0.001,
+          "reservoir_dim": 512,
+          "readout_hidden": 128,
+          "device_str": "cuda"
+        },
+        "elapsed_seconds": 2.7746250290074386,
+        "peak_gpu_allocated_MiB": 1810.13623046875,
+        "checkpoint_sha256": "5b08883ea6b717bf377a0664b0238babed2629cbd3e727f8e8e8e2971035681b",
+        "metadata": {
+          "task": "inverse_kinematics",
+          "arm": "2dof",
+          "input_definition": "[x, y]",
+          "target": "outputs",
+          "target_definition": "joint_angle_sin_cos",
+          "normalization": "training_only",
+          "split_seed": 42,
+          "train_samples": 450000,
+          "validation_samples": 50000,
+          "data_sha256": "0e102d79695ca54621596ee652d8a69ebb6570bfe114b0e73e86ca5ae2afbd8b",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "arm": "2dof",
+            "epochs": 300,
+            "batch_size": 65536,
+            "lr": 0.001,
+            "reservoir_dim": 512,
+            "readout_hidden": 128,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        }
+      },
+      {
+        "model": "ik_3dof_mlp",
+        "arguments": {
+          "arm": "3dof",
+          "epochs": 500,
+          "batch_size": 65536,
+          "lr": 0.0003,
+          "hidden_dim": 256,
+          "n_layers": 3,
+          "device_str": "cuda"
+        },
+        "elapsed_seconds": 8.019115766976029,
+        "peak_gpu_allocated_MiB": 307.95556640625,
+        "checkpoint_sha256": "0f69d4d3b87faaf25d53a2d394850c84702902fe8651107ae354ad5c8879b7ab",
+        "metadata": {
+          "task": "inverse_kinematics",
+          "arm": "3dof",
+          "input_definition": "[r_xy, z-L0]",
+          "target": "outputs_vert",
+          "target_definition": "joint_angle_sin_cos",
+          "normalization": "training_only",
+          "split_seed": 42,
+          "train_samples": 356986,
+          "validation_samples": 39665,
+          "data_sha256": "590064ffba5da51f4b8b93897f0e90e05891de05d53953a230e4733fb9401655",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "arm": "3dof",
+            "epochs": 500,
+            "batch_size": 65536,
+            "lr": 0.0003,
+            "hidden_dim": 256,
+            "n_layers": 3,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        }
+      },
+      {
+        "model": "ik_3dof_esn",
+        "arguments": {
+          "arm": "3dof",
+          "epochs": 300,
+          "batch_size": 65536,
+          "lr": 0.001,
+          "reservoir_dim": 512,
+          "readout_hidden": 128,
+          "device_str": "cuda"
+        },
+        "elapsed_seconds": 2.2585497309919447,
+        "peak_gpu_allocated_MiB": 1440.865234375,
+        "checkpoint_sha256": "f6df53964cadbbc69ae6f8755a861c484a54c74999e6882823e9fc50387fdad5",
+        "metadata": {
+          "task": "inverse_kinematics",
+          "arm": "3dof",
+          "input_definition": "[r_xy, z-L0]",
+          "target": "outputs_vert",
+          "target_definition": "joint_angle_sin_cos",
+          "normalization": "training_only",
+          "split_seed": 42,
+          "train_samples": 356986,
+          "validation_samples": 39665,
+          "data_sha256": "590064ffba5da51f4b8b93897f0e90e05891de05d53953a230e4733fb9401655",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "arm": "3dof",
+            "epochs": 300,
+            "batch_size": 65536,
+            "lr": 0.001,
+            "reservoir_dim": 512,
+            "readout_hidden": 128,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        }
+      },
+      {
+        "model": "idyn_3dof_mlp",
+        "arguments": {
+          "epochs": 1000,
+          "batch_size": 65536,
+          "lr": 0.0003,
+          "hidden_dim": 256,
+          "n_layers": 4,
+          "warmup_steps": 100,
+          "device_str": "cuda"
+        },
+        "elapsed_seconds": 8.032561542000622,
+        "peak_gpu_allocated_MiB": 487.51318359375,
+        "checkpoint_sha256": "e834826f6a2565c41c1ff06de6cd43e1b42b3d0738bdd84c00253d3abafbf375",
+        "metadata": {
+          "task": "inverse_dynamics_feedforward",
+          "target": "outputs",
+          "target_definition": "PD_teacher_total_torque_command_Nm",
+          "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+          "sampling_dt_seconds": 0.0020000000949949026,
+          "label_version": 2,
+          "train_trajectory_ids": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "normalization": "all_training_trajectory_inputs_only",
+          "warmup_steps": 100,
+          "train_loss_samples": 93600,
+          "validation_loss_samples": 23400,
+          "train_protocol": "frames_after_warmup",
+          "validation_protocol": "frames_after_warmup",
+          "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "epochs": 1000,
+            "batch_size": 65536,
+            "lr": 0.0003,
+            "hidden_dim": 256,
+            "n_layers": 4,
+            "warmup_steps": 100,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        }
+      },
+      {
+        "model": "idyn_3dof_esn",
+        "arguments": {
+          "epochs": 1000,
+          "batch_size": 65536,
+          "lr": 0.001,
+          "reservoir_dim": 512,
+          "readout_hidden": 128,
+          "spectral_radius": 0.9,
+          "warmup_steps": 100,
+          "device_str": "cuda"
+        },
+        "elapsed_seconds": 4.907133669999894,
+        "peak_gpu_allocated_MiB": 706.01025390625,
+        "checkpoint_sha256": "cf645483c8f3aa701deca38a355bfd57448d56784f0e0f11bf06bf2604c143d7",
+        "metadata": {
+          "task": "inverse_dynamics_feedforward",
+          "target": "outputs",
+          "target_definition": "PD_teacher_total_torque_command_Nm",
+          "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+          "sampling_dt_seconds": 0.0020000000949949026,
+          "label_version": 2,
+          "train_trajectory_ids": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "normalization": "all_training_trajectory_inputs_only",
+          "warmup_steps": 100,
+          "train_loss_samples": 93600,
+          "validation_loss_samples": 23400,
+          "train_protocol": "continuous_reservoir_after_warmup",
+          "validation_protocol": "continuous_trajectory_after_warmup",
+          "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "epochs": 1000,
+            "batch_size": 65536,
+            "lr": 0.001,
+            "reservoir_dim": 512,
+            "readout_hidden": 128,
+            "spectral_radius": 0.9,
+            "warmup_steps": 100,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        }
+      },
+      {
+        "model": "idyn_3dof_lstm",
+        "arguments": {
+          "model_type": "lstm",
+          "epochs": 1000,
+          "batch_size": 256,
+          "lr": 0.001,
+          "hidden_dim": 256,
+          "n_layers": 4,
+          "seq_len": 200,
+          "warmup_steps": 100,
+          "device_str": "cuda"
+        },
+        "elapsed_seconds": 421.3713246669504,
+        "peak_gpu_allocated_MiB": 1628.81298828125,
+        "checkpoint_sha256": "b045562145b0c556428a2add0a80734d864c2fca7ac0809a56f553501ed81173",
+        "metadata": {
+          "task": "inverse_dynamics_feedforward",
+          "target": "outputs",
+          "target_definition": "PD_teacher_total_torque_command_Nm",
+          "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+          "sampling_dt_seconds": 0.0020000000949949026,
+          "label_version": 2,
+          "train_trajectory_ids": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "normalization": "all_training_trajectory_inputs_only",
+          "warmup_steps": 100,
+          "train_loss_samples": 93600,
+          "validation_loss_samples": 23400,
+          "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+          "validation_protocol": "continuous_trajectory_after_warmup",
+          "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+          "training_chunk_steps": 200,
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "model_type": "lstm",
+            "epochs": 1000,
+            "batch_size": 256,
+            "lr": 0.001,
+            "hidden_dim": 256,
+            "n_layers": 4,
+            "seq_len": 200,
+            "warmup_steps": 100,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        }
+      },
+      {
+        "model": "idyn_3dof_gru",
+        "arguments": {
+          "model_type": "gru",
+          "epochs": 1000,
+          "batch_size": 256,
+          "lr": 0.001,
+          "hidden_dim": 256,
+          "n_layers": 4,
+          "seq_len": 200,
+          "warmup_steps": 100,
+          "device_str": "cuda"
+        },
+        "elapsed_seconds": 417.7743864269578,
+        "peak_gpu_allocated_MiB": 1763.32421875,
+        "checkpoint_sha256": "b68906db8ae41d898892ba4f1d7703f99400387a1b636f07e639afc68a9e07dd",
+        "metadata": {
+          "task": "inverse_dynamics_feedforward",
+          "target": "outputs",
+          "target_definition": "PD_teacher_total_torque_command_Nm",
+          "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+          "sampling_dt_seconds": 0.0020000000949949026,
+          "label_version": 2,
+          "train_trajectory_ids": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "normalization": "all_training_trajectory_inputs_only",
+          "warmup_steps": 100,
+          "train_loss_samples": 93600,
+          "validation_loss_samples": 23400,
+          "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+          "validation_protocol": "continuous_trajectory_after_warmup",
+          "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+          "training_chunk_steps": 200,
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "model_type": "gru",
+            "epochs": 1000,
+            "batch_size": 256,
+            "lr": 0.001,
+            "hidden_dim": 256,
+            "n_layers": 4,
+            "seq_len": 200,
+            "warmup_steps": 100,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        }
+      }
+    ],
+    "finished_at": "2026-11-10T01:03:12.102262+08:00",
+    "data_unchanged": true
+  },
+  "validation": {
+    "experiment": "full_retrain_20261110",
+    "inference_device": "cpu",
+    "cpu_threads": 1,
+    "torch_version": "2.11.0+cu130",
+    "inference_dtype": "float32",
+    "metric_accumulation_dtype": "float64",
+    "ik_split": "original_torch_cuda_randperm_seed_42_validation_indices",
+    "idyn_protocol": "complete_validation_trajectories_zero_state_per_trajectory_score_after_warmup",
+    "scope": "validation_set_used_for_checkpoint_selection_not_independent_test",
+    "models": {
+      "ik_2dof_mlp": {
+        "checkpoint_sha256": "05580ca2897a223e3d52235e3abc630c94cc25c158301f92f7d0bb7302a1285c",
+        "config": {
+          "input_dim": 2,
+          "hidden_dim": 256,
+          "output_dim": 4,
+          "n_layers": 3
+        },
+        "serialized_devices": [
+          "cpu"
+        ],
+        "all_tensors_finite": true,
+        "positive_input_std": true,
+        "archive_tensor_shapes_identical": true,
+        "state_tensor_elements": 133384,
+        "trainable_parameters": 133380,
+        "metadata": {
+          "task": "inverse_kinematics",
+          "arm": "2dof",
+          "input_definition": "[x, y]",
+          "target": "outputs",
+          "target_definition": "joint_angle_sin_cos",
+          "normalization": "training_only",
+          "split_seed": 42,
+          "train_samples": 450000,
+          "validation_samples": 50000,
+          "data_sha256": "0e102d79695ca54621596ee652d8a69ebb6570bfe114b0e73e86ca5ae2afbd8b",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "arm": "2dof",
+            "epochs": 500,
+            "batch_size": 65536,
+            "lr": 0.0003,
+            "hidden_dim": 256,
+            "n_layers": 3,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        },
+        "metrics": {
+          "validation_samples": 50000,
+          "validation_indices_sha256": "6b63b515bf12b9fbc6897b54492d87eae0c7965eb9a09f761408086fbefe0236",
+          "learned_joints": [
+            1,
+            2
+          ],
+          "joint_angle_mae_deg": 0.5517951867148583,
+          "joint_angle_mae_deg_per_learned_joint": [
+            0.6791923249305514,
+            0.4243980484991652
+          ],
+          "output_mse": 0.0002113882560884671,
+          "output_definition": "sin_cos_encoding"
+        }
+      },
+      "ik_2dof_esn": {
+        "checkpoint_sha256": "5b08883ea6b717bf377a0664b0238babed2629cbd3e727f8e8e8e2971035681b",
+        "config": {
+          "input_dim": 2,
+          "reservoir_dim": 512,
+          "readout_hidden": 128,
+          "output_dim": 4
+        },
+        "serialized_devices": [
+          "cpu"
+        ],
+        "all_tensors_finite": true,
+        "positive_input_std": true,
+        "archive_tensor_shapes_identical": true,
+        "state_tensor_elements": 67720,
+        "trainable_parameters": 66180,
+        "metadata": {
+          "task": "inverse_kinematics",
+          "arm": "2dof",
+          "input_definition": "[x, y]",
+          "target": "outputs",
+          "target_definition": "joint_angle_sin_cos",
+          "normalization": "training_only",
+          "split_seed": 42,
+          "train_samples": 450000,
+          "validation_samples": 50000,
+          "data_sha256": "0e102d79695ca54621596ee652d8a69ebb6570bfe114b0e73e86ca5ae2afbd8b",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "arm": "2dof",
+            "epochs": 300,
+            "batch_size": 65536,
+            "lr": 0.001,
+            "reservoir_dim": 512,
+            "readout_hidden": 128,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        },
+        "metrics": {
+          "validation_samples": 50000,
+          "validation_indices_sha256": "6b63b515bf12b9fbc6897b54492d87eae0c7965eb9a09f761408086fbefe0236",
+          "learned_joints": [
+            1,
+            2
+          ],
+          "joint_angle_mae_deg": 3.0952361031465943,
+          "joint_angle_mae_deg_per_learned_joint": [
+            3.307121847447557,
+            2.8833503588456315
+          ],
+          "output_mse": 0.003901078887098997,
+          "output_definition": "sin_cos_encoding"
+        }
+      },
+      "ik_3dof_mlp": {
+        "checkpoint_sha256": "0f69d4d3b87faaf25d53a2d394850c84702902fe8651107ae354ad5c8879b7ab",
+        "config": {
+          "input_dim": 2,
+          "hidden_dim": 256,
+          "output_dim": 4,
+          "n_layers": 3
+        },
+        "serialized_devices": [
+          "cpu"
+        ],
+        "all_tensors_finite": true,
+        "positive_input_std": true,
+        "archive_tensor_shapes_identical": true,
+        "state_tensor_elements": 133384,
+        "trainable_parameters": 133380,
+        "metadata": {
+          "task": "inverse_kinematics",
+          "arm": "3dof",
+          "input_definition": "[r_xy, z-L0]",
+          "target": "outputs_vert",
+          "target_definition": "joint_angle_sin_cos",
+          "normalization": "training_only",
+          "split_seed": 42,
+          "train_samples": 356986,
+          "validation_samples": 39665,
+          "data_sha256": "590064ffba5da51f4b8b93897f0e90e05891de05d53953a230e4733fb9401655",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "arm": "3dof",
+            "epochs": 500,
+            "batch_size": 65536,
+            "lr": 0.0003,
+            "hidden_dim": 256,
+            "n_layers": 3,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        },
+        "metrics": {
+          "validation_samples": 39665,
+          "validation_indices_sha256": "40b9385b2a287388a0f05163bde80dee1316489db9f1e06ab79acf300e5e82aa",
+          "learned_joints": [
+            2,
+            3
+          ],
+          "joint_angle_mae_deg": 0.3641022471131497,
+          "joint_angle_mae_deg_per_learned_joint": [
+            0.42878828142653086,
+            0.29941621279976854
+          ],
+          "output_mse": 0.00011646699914997019,
+          "output_definition": "sin_cos_encoding"
+        }
+      },
+      "ik_3dof_esn": {
+        "checkpoint_sha256": "f6df53964cadbbc69ae6f8755a861c484a54c74999e6882823e9fc50387fdad5",
+        "config": {
+          "input_dim": 2,
+          "reservoir_dim": 512,
+          "readout_hidden": 128,
+          "output_dim": 4
+        },
+        "serialized_devices": [
+          "cpu"
+        ],
+        "all_tensors_finite": true,
+        "positive_input_std": true,
+        "archive_tensor_shapes_identical": true,
+        "state_tensor_elements": 67720,
+        "trainable_parameters": 66180,
+        "metadata": {
+          "task": "inverse_kinematics",
+          "arm": "3dof",
+          "input_definition": "[r_xy, z-L0]",
+          "target": "outputs_vert",
+          "target_definition": "joint_angle_sin_cos",
+          "normalization": "training_only",
+          "split_seed": 42,
+          "train_samples": 356986,
+          "validation_samples": 39665,
+          "data_sha256": "590064ffba5da51f4b8b93897f0e90e05891de05d53953a230e4733fb9401655",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "arm": "3dof",
+            "epochs": 300,
+            "batch_size": 65536,
+            "lr": 0.001,
+            "reservoir_dim": 512,
+            "readout_hidden": 128,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        },
+        "metrics": {
+          "validation_samples": 39665,
+          "validation_indices_sha256": "40b9385b2a287388a0f05163bde80dee1316489db9f1e06ab79acf300e5e82aa",
+          "learned_joints": [
+            2,
+            3
+          ],
+          "joint_angle_mae_deg": 2.5163377392724353,
+          "joint_angle_mae_deg_per_learned_joint": [
+            2.5434049437602697,
+            2.489270534784601
+          ],
+          "output_mse": 0.003177825262383128,
+          "output_definition": "sin_cos_encoding"
+        }
+      },
+      "idyn_3dof_mlp": {
+        "checkpoint_sha256": "e834826f6a2565c41c1ff06de6cd43e1b42b3d0738bdd84c00253d3abafbf375",
+        "config": {
+          "n_joints": 3,
+          "hidden_dim": 256,
+          "n_layers": 4
+        },
+        "serialized_devices": [
+          "cpu"
+        ],
+        "all_tensors_finite": true,
+        "positive_input_std": true,
+        "archive_tensor_shapes_identical": true,
+        "state_tensor_elements": 199951,
+        "trainable_parameters": 199939,
+        "metadata": {
+          "task": "inverse_dynamics_feedforward",
+          "target": "outputs",
+          "target_definition": "PD_teacher_total_torque_command_Nm",
+          "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+          "sampling_dt_seconds": 0.0020000000949949026,
+          "label_version": 2,
+          "train_trajectory_ids": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "normalization": "all_training_trajectory_inputs_only",
+          "warmup_steps": 100,
+          "train_loss_samples": 93600,
+          "validation_loss_samples": 23400,
+          "train_protocol": "frames_after_warmup",
+          "validation_protocol": "frames_after_warmup",
+          "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "epochs": 1000,
+            "batch_size": 65536,
+            "lr": 0.0003,
+            "hidden_dim": 256,
+            "n_layers": 4,
+            "warmup_steps": 100,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        },
+        "metrics": {
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "warmup_steps": 100,
+          "scored_samples": 23400,
+          "torque_mae_Nm": 0.048702088430395724,
+          "torque_mse_Nm2": 0.004754463365432698,
+          "torque_mae_Nm_per_joint": [
+            0.06835825232060268,
+            0.043090126200130856,
+            0.03465788677045364
+          ],
+          "torque_mse_Nm2_per_joint": [
+            0.008082034592744184,
+            0.003956296679379334,
+            0.00222505882417458
+          ],
+          "per_trajectory": [
+            {
+              "trajectory_id": 24,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.04635997659771536,
+              "torque_mse_Nm2": 0.004063112519189716
+            },
+            {
+              "trajectory_id": 25,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.039375899516906225,
+              "torque_mse_Nm2": 0.003682781033907345
+            },
+            {
+              "trajectory_id": 26,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.04408026523105853,
+              "torque_mse_Nm2": 0.005137752422641032
+            },
+            {
+              "trajectory_id": 27,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.056087801071677636,
+              "torque_mse_Nm2": 0.005874296260556601
+            },
+            {
+              "trajectory_id": 28,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.04538371105241449,
+              "torque_mse_Nm2": 0.0037653254816633914
+            },
+            {
+              "trajectory_id": 29,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.06092487711260211,
+              "torque_mse_Nm2": 0.006003512474638106
+            }
+          ]
+        }
+      },
+      "idyn_3dof_esn": {
+        "checkpoint_sha256": "cf645483c8f3aa701deca38a355bfd57448d56784f0e0f11bf06bf2604c143d7",
+        "config": {
+          "n_joints": 3,
+          "reservoir_dim": 512,
+          "readout_hidden": 128,
+          "spectral_radius": 0.8999999165534973
+        },
+        "serialized_devices": [
+          "cpu"
+        ],
+        "all_tensors_finite": true,
+        "positive_input_std": true,
+        "archive_tensor_shapes_identical": true,
+        "state_tensor_elements": 331791,
+        "trainable_parameters": 66051,
+        "metadata": {
+          "task": "inverse_dynamics_feedforward",
+          "target": "outputs",
+          "target_definition": "PD_teacher_total_torque_command_Nm",
+          "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+          "sampling_dt_seconds": 0.0020000000949949026,
+          "label_version": 2,
+          "train_trajectory_ids": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "normalization": "all_training_trajectory_inputs_only",
+          "warmup_steps": 100,
+          "train_loss_samples": 93600,
+          "validation_loss_samples": 23400,
+          "train_protocol": "continuous_reservoir_after_warmup",
+          "validation_protocol": "continuous_trajectory_after_warmup",
+          "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "epochs": 1000,
+            "batch_size": 65536,
+            "lr": 0.001,
+            "reservoir_dim": 512,
+            "readout_hidden": 128,
+            "spectral_radius": 0.9,
+            "warmup_steps": 100,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        },
+        "metrics": {
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "warmup_steps": 100,
+          "scored_samples": 23400,
+          "torque_mae_Nm": 0.052703075463129204,
+          "torque_mse_Nm2": 0.005841873146237453,
+          "torque_mae_Nm_per_joint": [
+            0.07755193178702838,
+            0.04562606970435078,
+            0.03493122489800844
+          ],
+          "torque_mse_Nm2_per_joint": [
+            0.01082375544797052,
+            0.0043373748420995565,
+            0.0023644891486422808
+          ],
+          "per_trajectory": [
+            {
+              "trajectory_id": 24,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.04648414675335392,
+              "torque_mse_Nm2": 0.0042523020524588
+            },
+            {
+              "trajectory_id": 25,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.044548643473369114,
+              "torque_mse_Nm2": 0.0048916652877770105
+            },
+            {
+              "trajectory_id": 26,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.05374638118572012,
+              "torque_mse_Nm2": 0.006550009331616786
+            },
+            {
+              "trajectory_id": 27,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.06025916418934646,
+              "torque_mse_Nm2": 0.007028318878683552
+            },
+            {
+              "trajectory_id": 28,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.04926507442868111,
+              "torque_mse_Nm2": 0.0046309431576393775
+            },
+            {
+              "trajectory_id": 29,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.061915042748304484,
+              "torque_mse_Nm2": 0.0076980001692491876
+            }
+          ]
+        }
+      },
+      "idyn_3dof_lstm": {
+        "checkpoint_sha256": "b045562145b0c556428a2add0a80734d864c2fca7ac0809a56f553501ed81173",
+        "config": {
+          "n_joints": 3,
+          "hidden_dim": 256,
+          "n_layers": 4
+        },
+        "serialized_devices": [
+          "cpu"
+        ],
+        "all_tensors_finite": true,
+        "positive_input_std": true,
+        "archive_tensor_shapes_identical": true,
+        "state_tensor_elements": 1850127,
+        "trainable_parameters": 1850115,
+        "metadata": {
+          "task": "inverse_dynamics_feedforward",
+          "target": "outputs",
+          "target_definition": "PD_teacher_total_torque_command_Nm",
+          "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+          "sampling_dt_seconds": 0.0020000000949949026,
+          "label_version": 2,
+          "train_trajectory_ids": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "normalization": "all_training_trajectory_inputs_only",
+          "warmup_steps": 100,
+          "train_loss_samples": 93600,
+          "validation_loss_samples": 23400,
+          "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+          "validation_protocol": "continuous_trajectory_after_warmup",
+          "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+          "training_chunk_steps": 200,
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "model_type": "lstm",
+            "epochs": 1000,
+            "batch_size": 256,
+            "lr": 0.001,
+            "hidden_dim": 256,
+            "n_layers": 4,
+            "seq_len": 200,
+            "warmup_steps": 100,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        },
+        "metrics": {
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "warmup_steps": 100,
+          "scored_samples": 23400,
+          "torque_mae_Nm": 0.011552346781832484,
+          "torque_mse_Nm2": 0.000291611722309631,
+          "torque_mae_Nm_per_joint": [
+            0.01067383493268631,
+            0.01219618946394702,
+            0.011787015948864122
+          ],
+          "torque_mse_Nm2_per_joint": [
+            0.00023631870865335023,
+            0.00029662566998990065,
+            0.0003418907882856421
+          ],
+          "per_trajectory": [
+            {
+              "trajectory_id": 24,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.010623562802763609,
+              "torque_mse_Nm2": 0.00021926013700675917
+            },
+            {
+              "trajectory_id": 25,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.00870499943437017,
+              "torque_mse_Nm2": 0.00016721803474641897
+            },
+            {
+              "trajectory_id": 26,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.010912395504467577,
+              "torque_mse_Nm2": 0.00025256007141920945
+            },
+            {
+              "trajectory_id": 27,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.011791330377398901,
+              "torque_mse_Nm2": 0.0003290849292552593
+            },
+            {
+              "trajectory_id": 28,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.013729167657064296,
+              "torque_mse_Nm2": 0.0004181041120711229
+            },
+            {
+              "trajectory_id": 29,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.013552624914930356,
+              "torque_mse_Nm2": 0.000363443049359016
+            }
+          ]
+        }
+      },
+      "idyn_3dof_gru": {
+        "checkpoint_sha256": "b68906db8ae41d898892ba4f1d7703f99400387a1b636f07e639afc68a9e07dd",
+        "config": {
+          "n_joints": 3,
+          "hidden_dim": 256,
+          "n_layers": 4
+        },
+        "serialized_devices": [
+          "cpu"
+        ],
+        "all_tensors_finite": true,
+        "positive_input_std": true,
+        "archive_tensor_shapes_identical": true,
+        "state_tensor_elements": 1387791,
+        "trainable_parameters": 1387779,
+        "metadata": {
+          "task": "inverse_dynamics_feedforward",
+          "target": "outputs",
+          "target_definition": "PD_teacher_total_torque_command_Nm",
+          "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+          "sampling_dt_seconds": 0.0020000000949949026,
+          "label_version": 2,
+          "train_trajectory_ids": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "normalization": "all_training_trajectory_inputs_only",
+          "warmup_steps": 100,
+          "train_loss_samples": 93600,
+          "validation_loss_samples": 23400,
+          "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+          "validation_protocol": "continuous_trajectory_after_warmup",
+          "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+          "training_chunk_steps": 200,
+          "experiment": "full_retrain_20261110",
+          "random_seed": 42,
+          "training_arguments": {
+            "model_type": "gru",
+            "epochs": 1000,
+            "batch_size": 256,
+            "lr": 0.001,
+            "hidden_dim": 256,
+            "n_layers": 4,
+            "seq_len": 200,
+            "warmup_steps": 100,
+            "device_str": "cuda"
+          },
+          "torch_version": "2.11.0+cu130",
+          "training_device": "NVIDIA GeForce RTX 4090"
+        },
+        "metrics": {
+          "validation_trajectory_ids": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "warmup_steps": 100,
+          "scored_samples": 23400,
+          "torque_mae_Nm": 0.01105214153513737,
+          "torque_mse_Nm2": 0.0002799520713208724,
+          "torque_mae_Nm_per_joint": [
+            0.009874025016938386,
+            0.010940439514997395,
+            0.012341960073476328
+          ],
+          "torque_mse_Nm2_per_joint": [
+            0.00023541299160074924,
+            0.0002520847300824035,
+            0.0003523584922794645
+          ],
+          "per_trajectory": [
+            {
+              "trajectory_id": 24,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.009705761659822752,
+              "torque_mse_Nm2": 0.00019379916759410177
+            },
+            {
+              "trajectory_id": 25,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.0093591175970903,
+              "torque_mse_Nm2": 0.00020994412930134203
+            },
+            {
+              "trajectory_id": 26,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.010752448297529724,
+              "torque_mse_Nm2": 0.00026908167331318196
+            },
+            {
+              "trajectory_id": 27,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.011875926200831537,
+              "torque_mse_Nm2": 0.00030664945453515364
+            },
+            {
+              "trajectory_id": 28,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.012883636985951985,
+              "torque_mse_Nm2": 0.0003830337295237593
+            },
+            {
+              "trajectory_id": 29,
+              "scored_samples": 3900,
+              "torque_mae_Nm": 0.011735958469597923,
+              "torque_mse_Nm2": 0.00031720427365769565
+            }
+          ]
+        }
+      }
+    },
+    "updated_at": "2026-11-10T01:04:27.951455+08:00"
+  },
+  "ik": {
+    "protocol": {
+      "device": "cpu",
+      "torch_threads": 1,
+      "torch_interop_threads": 1,
+      "targets_sha256": "f0af28a201a6b9cc262629b5e36430c5573d3ce3d7ebb4dfb780749001f89f76",
+      "target_file": "ik_frozen_targets.npz",
+      "target_generation": {
+        "count_per_arm_per_domain": 8000,
+        "broad_seed": 42,
+        "common_seed": 7777,
+        "2dof_broad": "原环形 XY 均匀拒绝采样，半径 0.04—0.26m",
+        "3dof_broad": "原球壳 XYZ 均匀拒绝采样，半径 0.05—0.26m，Z>=0.05m；含正肘训练域外",
+        "common": "原几何采样分布与正肘合法支持域的交集；3DOF额外要求signed r>0.01m，不等于训练FK分布",
+        "3dof_common_pool_points": 16000,
+        "3dof_common_supported_pool_points": 15124,
+        "config_2dof": {
+          "L1": 0.15,
+          "L2": 0.12,
+          "theta1_min": -3.141592653589793,
+          "theta1_max": 3.141592653589793,
+          "theta2_min": -3.141592653589793,
+          "theta2_max": 3.141592653589793,
+          "arm_height": 0.05
+        },
+        "config_3dof": {
+          "L0": 0.2,
+          "L1": 0.15,
+          "L2": 0.12,
+          "theta1_min": -3.141592653589793,
+          "theta1_max": 3.141592653589793,
+          "theta2_min": -1.5707963267948966,
+          "theta2_max": 1.5707963267948966,
+          "theta3_min": -3.141592653589793,
+          "theta3_max": 3.141592653589793
+        }
+      },
+      "error_statistics": "误差仅统计合法解；合法性检查原始输出有限、解码角有限及全部关节限位",
+      "success_denominator": "全部8000目标；非法或超过阈值均失败，不允许解析回退",
+      "scope": "离线IK几何评估，不等于动力学、器件或全工作空间验证；单次训练seed=42"
+    },
+    "checkpoints": {
+      "2dof": {
+        "old": {
+          "mlp": {
+            "path": "export/retrain_20261110/checkpoints_before/ik_2dof_mlp_best.pt",
+            "sha256": "cf5e1c74de5dab74b745572ac9fde097fd97660b496af78c2a29765b19a3bf49",
+            "config": {
+              "input_dim": 2,
+              "hidden_dim": 256,
+              "output_dim": 4,
+              "n_layers": 3
+            },
+            "metadata": {},
+            "current_data_sha256": "0e102d79695ca54621596ee652d8a69ebb6570bfe114b0e73e86ca5ae2afbd8b",
+            "checks": {
+              "stored_tensor_devices": [
+                "cpu"
+              ],
+              "data_sha256_matches_current_data": false,
+              "random_seed_is_42": false,
+              "normalization_training_only": false,
+              "archive_sha256_matches_training_manifest": true
+            },
+            "state_dict_total_elements": 133384,
+            "state_shapes": {
+              "x_mean": [
+                2
+              ],
+              "x_std": [
+                2
+              ],
+              "net.0.weight": [
+                256,
+                2
+              ],
+              "net.0.bias": [
+                256
+              ],
+              "net.2.weight": [
+                256,
+                256
+              ],
+              "net.2.bias": [
+                256
+              ],
+              "net.4.weight": [
+                256,
+                256
+              ],
+              "net.4.bias": [
+                256
+              ],
+              "net.6.weight": [
+                4,
+                256
+              ],
+              "net.6.bias": [
+                4
+              ]
+            }
+          },
+          "esn": {
+            "path": "export/retrain_20261110/checkpoints_before/ik_2dof_esn_best.pt",
+            "sha256": "fdf8d2203f724085318923a29b23bc7fb337a0a7ddc91cc3edaf55dbb8c3e309",
+            "config": {
+              "input_dim": 2,
+              "reservoir_dim": 512,
+              "readout_hidden": 128,
+              "output_dim": 4
+            },
+            "metadata": {},
+            "current_data_sha256": "0e102d79695ca54621596ee652d8a69ebb6570bfe114b0e73e86ca5ae2afbd8b",
+            "checks": {
+              "stored_tensor_devices": [
+                "cpu"
+              ],
+              "data_sha256_matches_current_data": false,
+              "random_seed_is_42": false,
+              "normalization_training_only": false,
+              "archive_sha256_matches_training_manifest": true
+            },
+            "state_dict_total_elements": 67720,
+            "state_shapes": {
+              "Win": [
+                512,
+                2
+              ],
+              "b_in": [
+                512
+              ],
+              "x_mean": [
+                2
+              ],
+              "x_std": [
+                2
+              ],
+              "readout.0.weight": [
+                128,
+                512
+              ],
+              "readout.0.bias": [
+                128
+              ],
+              "readout.2.weight": [
+                4,
+                128
+              ],
+              "readout.2.bias": [
+                4
+              ]
+            }
+          }
+        },
+        "new": {
+          "mlp": {
+            "path": "checkpoints/ik_2dof_mlp_best.pt",
+            "sha256": "05580ca2897a223e3d52235e3abc630c94cc25c158301f92f7d0bb7302a1285c",
+            "config": {
+              "input_dim": 2,
+              "hidden_dim": 256,
+              "output_dim": 4,
+              "n_layers": 3
+            },
+            "metadata": {
+              "task": "inverse_kinematics",
+              "arm": "2dof",
+              "input_definition": "[x, y]",
+              "target": "outputs",
+              "target_definition": "joint_angle_sin_cos",
+              "normalization": "training_only",
+              "split_seed": 42,
+              "train_samples": 450000,
+              "validation_samples": 50000,
+              "data_sha256": "0e102d79695ca54621596ee652d8a69ebb6570bfe114b0e73e86ca5ae2afbd8b",
+              "experiment": "full_retrain_20261110",
+              "random_seed": 42,
+              "training_arguments": {
+                "arm": "2dof",
+                "epochs": 500,
+                "batch_size": 65536,
+                "lr": 0.0003,
+                "hidden_dim": 256,
+                "n_layers": 3,
+                "device_str": "cuda"
+              },
+              "torch_version": "2.11.0+cu130",
+              "training_device": "NVIDIA GeForce RTX 4090"
+            },
+            "current_data_sha256": "0e102d79695ca54621596ee652d8a69ebb6570bfe114b0e73e86ca5ae2afbd8b",
+            "checks": {
+              "stored_tensor_devices": [
+                "cpu"
+              ],
+              "data_sha256_matches_current_data": true,
+              "random_seed_is_42": true,
+              "normalization_training_only": true
+            },
+            "state_dict_total_elements": 133384,
+            "state_shapes": {
+              "x_mean": [
+                2
+              ],
+              "x_std": [
+                2
+              ],
+              "net.0.weight": [
+                256,
+                2
+              ],
+              "net.0.bias": [
+                256
+              ],
+              "net.2.weight": [
+                256,
+                256
+              ],
+              "net.2.bias": [
+                256
+              ],
+              "net.4.weight": [
+                256,
+                256
+              ],
+              "net.4.bias": [
+                256
+              ],
+              "net.6.weight": [
+                4,
+                256
+              ],
+              "net.6.bias": [
+                4
+              ]
+            }
+          },
+          "esn": {
+            "path": "checkpoints/ik_2dof_esn_best.pt",
+            "sha256": "5b08883ea6b717bf377a0664b0238babed2629cbd3e727f8e8e8e2971035681b",
+            "config": {
+              "input_dim": 2,
+              "reservoir_dim": 512,
+              "readout_hidden": 128,
+              "output_dim": 4
+            },
+            "metadata": {
+              "task": "inverse_kinematics",
+              "arm": "2dof",
+              "input_definition": "[x, y]",
+              "target": "outputs",
+              "target_definition": "joint_angle_sin_cos",
+              "normalization": "training_only",
+              "split_seed": 42,
+              "train_samples": 450000,
+              "validation_samples": 50000,
+              "data_sha256": "0e102d79695ca54621596ee652d8a69ebb6570bfe114b0e73e86ca5ae2afbd8b",
+              "experiment": "full_retrain_20261110",
+              "random_seed": 42,
+              "training_arguments": {
+                "arm": "2dof",
+                "epochs": 300,
+                "batch_size": 65536,
+                "lr": 0.001,
+                "reservoir_dim": 512,
+                "readout_hidden": 128,
+                "device_str": "cuda"
+              },
+              "torch_version": "2.11.0+cu130",
+              "training_device": "NVIDIA GeForce RTX 4090"
+            },
+            "current_data_sha256": "0e102d79695ca54621596ee652d8a69ebb6570bfe114b0e73e86ca5ae2afbd8b",
+            "checks": {
+              "stored_tensor_devices": [
+                "cpu"
+              ],
+              "data_sha256_matches_current_data": true,
+              "random_seed_is_42": true,
+              "normalization_training_only": true
+            },
+            "state_dict_total_elements": 67720,
+            "state_shapes": {
+              "Win": [
+                512,
+                2
+              ],
+              "b_in": [
+                512
+              ],
+              "x_mean": [
+                2
+              ],
+              "x_std": [
+                2
+              ],
+              "readout.0.weight": [
+                128,
+                512
+              ],
+              "readout.0.bias": [
+                128
+              ],
+              "readout.2.weight": [
+                4,
+                128
+              ],
+              "readout.2.bias": [
+                4
+              ]
+            }
+          }
+        }
+      },
+      "3dof": {
+        "old": {
+          "mlp": {
+            "path": "export/retrain_20261110/checkpoints_before/ik_3dof_mlp_best.pt",
+            "sha256": "73e6f27d071b47d002c833b435db5fb75f1565d3a6f33409b2231d8720c5232f",
+            "config": {
+              "input_dim": 2,
+              "hidden_dim": 256,
+              "output_dim": 4,
+              "n_layers": 3
+            },
+            "metadata": {},
+            "current_data_sha256": "590064ffba5da51f4b8b93897f0e90e05891de05d53953a230e4733fb9401655",
+            "checks": {
+              "stored_tensor_devices": [
+                "cpu"
+              ],
+              "data_sha256_matches_current_data": false,
+              "random_seed_is_42": false,
+              "normalization_training_only": false,
+              "archive_sha256_matches_training_manifest": true
+            },
+            "state_dict_total_elements": 133384,
+            "state_shapes": {
+              "x_mean": [
+                2
+              ],
+              "x_std": [
+                2
+              ],
+              "net.0.weight": [
+                256,
+                2
+              ],
+              "net.0.bias": [
+                256
+              ],
+              "net.2.weight": [
+                256,
+                256
+              ],
+              "net.2.bias": [
+                256
+              ],
+              "net.4.weight": [
+                256,
+                256
+              ],
+              "net.4.bias": [
+                256
+              ],
+              "net.6.weight": [
+                4,
+                256
+              ],
+              "net.6.bias": [
+                4
+              ]
+            }
+          },
+          "esn": {
+            "path": "export/retrain_20261110/checkpoints_before/ik_3dof_esn_best.pt",
+            "sha256": "8b2748544d043a1c97da3faea7394d18f3eb403c234ef1affa99b0897128e4d8",
+            "config": {
+              "input_dim": 2,
+              "reservoir_dim": 512,
+              "readout_hidden": 128,
+              "output_dim": 4
+            },
+            "metadata": {},
+            "current_data_sha256": "590064ffba5da51f4b8b93897f0e90e05891de05d53953a230e4733fb9401655",
+            "checks": {
+              "stored_tensor_devices": [
+                "cpu"
+              ],
+              "data_sha256_matches_current_data": false,
+              "random_seed_is_42": false,
+              "normalization_training_only": false,
+              "archive_sha256_matches_training_manifest": true
+            },
+            "state_dict_total_elements": 67720,
+            "state_shapes": {
+              "Win": [
+                512,
+                2
+              ],
+              "b_in": [
+                512
+              ],
+              "x_mean": [
+                2
+              ],
+              "x_std": [
+                2
+              ],
+              "readout.0.weight": [
+                128,
+                512
+              ],
+              "readout.0.bias": [
+                128
+              ],
+              "readout.2.weight": [
+                4,
+                128
+              ],
+              "readout.2.bias": [
+                4
+              ]
+            }
+          }
+        },
+        "new": {
+          "mlp": {
+            "path": "checkpoints/ik_3dof_mlp_best.pt",
+            "sha256": "0f69d4d3b87faaf25d53a2d394850c84702902fe8651107ae354ad5c8879b7ab",
+            "config": {
+              "input_dim": 2,
+              "hidden_dim": 256,
+              "output_dim": 4,
+              "n_layers": 3
+            },
+            "metadata": {
+              "task": "inverse_kinematics",
+              "arm": "3dof",
+              "input_definition": "[r_xy, z-L0]",
+              "target": "outputs_vert",
+              "target_definition": "joint_angle_sin_cos",
+              "normalization": "training_only",
+              "split_seed": 42,
+              "train_samples": 356986,
+              "validation_samples": 39665,
+              "data_sha256": "590064ffba5da51f4b8b93897f0e90e05891de05d53953a230e4733fb9401655",
+              "experiment": "full_retrain_20261110",
+              "random_seed": 42,
+              "training_arguments": {
+                "arm": "3dof",
+                "epochs": 500,
+                "batch_size": 65536,
+                "lr": 0.0003,
+                "hidden_dim": 256,
+                "n_layers": 3,
+                "device_str": "cuda"
+              },
+              "torch_version": "2.11.0+cu130",
+              "training_device": "NVIDIA GeForce RTX 4090"
+            },
+            "current_data_sha256": "590064ffba5da51f4b8b93897f0e90e05891de05d53953a230e4733fb9401655",
+            "checks": {
+              "stored_tensor_devices": [
+                "cpu"
+              ],
+              "data_sha256_matches_current_data": true,
+              "random_seed_is_42": true,
+              "normalization_training_only": true
+            },
+            "state_dict_total_elements": 133384,
+            "state_shapes": {
+              "x_mean": [
+                2
+              ],
+              "x_std": [
+                2
+              ],
+              "net.0.weight": [
+                256,
+                2
+              ],
+              "net.0.bias": [
+                256
+              ],
+              "net.2.weight": [
+                256,
+                256
+              ],
+              "net.2.bias": [
+                256
+              ],
+              "net.4.weight": [
+                256,
+                256
+              ],
+              "net.4.bias": [
+                256
+              ],
+              "net.6.weight": [
+                4,
+                256
+              ],
+              "net.6.bias": [
+                4
+              ]
+            }
+          },
+          "esn": {
+            "path": "checkpoints/ik_3dof_esn_best.pt",
+            "sha256": "f6df53964cadbbc69ae6f8755a861c484a54c74999e6882823e9fc50387fdad5",
+            "config": {
+              "input_dim": 2,
+              "reservoir_dim": 512,
+              "readout_hidden": 128,
+              "output_dim": 4
+            },
+            "metadata": {
+              "task": "inverse_kinematics",
+              "arm": "3dof",
+              "input_definition": "[r_xy, z-L0]",
+              "target": "outputs_vert",
+              "target_definition": "joint_angle_sin_cos",
+              "normalization": "training_only",
+              "split_seed": 42,
+              "train_samples": 356986,
+              "validation_samples": 39665,
+              "data_sha256": "590064ffba5da51f4b8b93897f0e90e05891de05d53953a230e4733fb9401655",
+              "experiment": "full_retrain_20261110",
+              "random_seed": 42,
+              "training_arguments": {
+                "arm": "3dof",
+                "epochs": 300,
+                "batch_size": 65536,
+                "lr": 0.001,
+                "reservoir_dim": 512,
+                "readout_hidden": 128,
+                "device_str": "cuda"
+              },
+              "torch_version": "2.11.0+cu130",
+              "training_device": "NVIDIA GeForce RTX 4090"
+            },
+            "current_data_sha256": "590064ffba5da51f4b8b93897f0e90e05891de05d53953a230e4733fb9401655",
+            "checks": {
+              "stored_tensor_devices": [
+                "cpu"
+              ],
+              "data_sha256_matches_current_data": true,
+              "random_seed_is_42": true,
+              "normalization_training_only": true
+            },
+            "state_dict_total_elements": 67720,
+            "state_shapes": {
+              "Win": [
+                512,
+                2
+              ],
+              "b_in": [
+                512
+              ],
+              "x_mean": [
+                2
+              ],
+              "x_std": [
+                2
+              ],
+              "readout.0.weight": [
+                128,
+                512
+              ],
+              "readout.0.bias": [
+                128
+              ],
+              "readout.2.weight": [
+                4,
+                128
+              ],
+              "readout.2.bias": [
+                4
+              ]
+            }
+          }
+        }
+      }
+    },
+    "results": {
+      "2dof": {
+        "broad": {
+          "old": {
+            "analytical": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 3.0082333428034974e-14,
+              "legal_median_mm": 2.7755575615628914e-14,
+              "legal_p95_mm": 7.47341745035227e-14,
+              "legal_rmse_mm": 3.8478497319076076e-14,
+              "success_1mm_count": 8000,
+              "success_1mm_fraction_all_targets": 1.0,
+              "success_5mm_count": 8000,
+              "success_5mm_fraction_all_targets": 1.0,
+              "invalid_error_entries_are_nan": true
+            },
+            "mlp": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 0.9203757643094784,
+              "legal_median_mm": 0.7940609172139641,
+              "legal_p95_mm": 2.0761190057851304,
+              "legal_rmse_mm": 1.0968312332409162,
+              "success_1mm_count": 5197,
+              "success_1mm_fraction_all_targets": 0.649625,
+              "success_5mm_count": 8000,
+              "success_5mm_fraction_all_targets": 1.0,
+              "invalid_error_entries_are_nan": true
+            },
+            "esn": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 6.654318214746398,
+              "legal_median_mm": 6.299009365685672,
+              "legal_p95_mm": 13.067440926323991,
+              "legal_rmse_mm": 7.477454033449094,
+              "success_1mm_count": 122,
+              "success_1mm_fraction_all_targets": 0.01525,
+              "success_5mm_count": 2758,
+              "success_5mm_fraction_all_targets": 0.34475,
+              "invalid_error_entries_are_nan": true
+            }
+          },
+          "new": {
+            "analytical": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 3.0082333428034974e-14,
+              "legal_median_mm": 2.7755575615628914e-14,
+              "legal_p95_mm": 7.47341745035227e-14,
+              "legal_rmse_mm": 3.8478497319076076e-14,
+              "success_1mm_count": 8000,
+              "success_1mm_fraction_all_targets": 1.0,
+              "success_5mm_count": 8000,
+              "success_5mm_fraction_all_targets": 1.0,
+              "invalid_error_entries_are_nan": true
+            },
+            "mlp": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 1.015174447316931,
+              "legal_median_mm": 0.8670837128689297,
+              "legal_p95_mm": 2.315503428189942,
+              "legal_rmse_mm": 1.2162103640276853,
+              "success_1mm_count": 4645,
+              "success_1mm_fraction_all_targets": 0.580625,
+              "success_5mm_count": 7998,
+              "success_5mm_fraction_all_targets": 0.99975,
+              "invalid_error_entries_are_nan": true
+            },
+            "esn": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 6.504312441727902,
+              "legal_median_mm": 6.34785017112466,
+              "legal_p95_mm": 12.241489522808072,
+              "legal_rmse_mm": 7.281692926902456,
+              "success_1mm_count": 193,
+              "success_1mm_fraction_all_targets": 0.024125,
+              "success_5mm_count": 2740,
+              "success_5mm_fraction_all_targets": 0.3425,
+              "invalid_error_entries_are_nan": true
+            }
+          }
+        },
+        "common": {
+          "old": {
+            "analytical": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 3.0321257806358665e-14,
+              "legal_median_mm": 2.7755575615628914e-14,
+              "legal_p95_mm": 7.762546382123718e-14,
+              "legal_rmse_mm": 3.872563755548125e-14,
+              "success_1mm_count": 8000,
+              "success_1mm_fraction_all_targets": 1.0,
+              "success_5mm_count": 8000,
+              "success_5mm_fraction_all_targets": 1.0,
+              "invalid_error_entries_are_nan": true
+            },
+            "mlp": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 0.9225156194466901,
+              "legal_median_mm": 0.7912695607639314,
+              "legal_p95_mm": 2.1268919765819057,
+              "legal_rmse_mm": 1.1068750632381332,
+              "success_1mm_count": 5230,
+              "success_1mm_fraction_all_targets": 0.65375,
+              "success_5mm_count": 8000,
+              "success_5mm_fraction_all_targets": 1.0,
+              "invalid_error_entries_are_nan": true
+            },
+            "esn": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 6.585519611473399,
+              "legal_median_mm": 6.166658802624498,
+              "legal_p95_mm": 13.131269898826972,
+              "legal_rmse_mm": 7.435962726860341,
+              "success_1mm_count": 129,
+              "success_1mm_fraction_all_targets": 0.016125,
+              "success_5mm_count": 2869,
+              "success_5mm_fraction_all_targets": 0.358625,
+              "invalid_error_entries_are_nan": true
+            }
+          },
+          "new": {
+            "analytical": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 3.0321257806358665e-14,
+              "legal_median_mm": 2.7755575615628914e-14,
+              "legal_p95_mm": 7.762546382123718e-14,
+              "legal_rmse_mm": 3.872563755548125e-14,
+              "success_1mm_count": 8000,
+              "success_1mm_fraction_all_targets": 1.0,
+              "success_5mm_count": 8000,
+              "success_5mm_fraction_all_targets": 1.0,
+              "invalid_error_entries_are_nan": true
+            },
+            "mlp": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 1.014863046788006,
+              "legal_median_mm": 0.8469349378184918,
+              "legal_p95_mm": 2.3836221473317565,
+              "legal_rmse_mm": 1.2289798362537292,
+              "success_1mm_count": 4743,
+              "success_1mm_fraction_all_targets": 0.592875,
+              "success_5mm_count": 7998,
+              "success_5mm_fraction_all_targets": 0.99975,
+              "invalid_error_entries_are_nan": true
+            },
+            "esn": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 6.417385085682081,
+              "legal_median_mm": 6.283570676946594,
+              "legal_p95_mm": 12.049308537145285,
+              "legal_rmse_mm": 7.192304211529068,
+              "success_1mm_count": 211,
+              "success_1mm_fraction_all_targets": 0.026375,
+              "success_5mm_count": 2771,
+              "success_5mm_fraction_all_targets": 0.346375,
+              "invalid_error_entries_are_nan": true
+            }
+          }
+        }
+      },
+      "3dof": {
+        "broad": {
+          "old": {
+            "analytical": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 2.8600739396286856e-14,
+              "legal_median_mm": 2.797157557069881e-14,
+              "legal_p95_mm": 6.206335383118183e-14,
+              "legal_rmse_mm": 3.385065004260337e-14,
+              "success_1mm_count": 8000,
+              "success_1mm_fraction_all_targets": 1.0,
+              "success_5mm_count": 8000,
+              "success_5mm_fraction_all_targets": 1.0,
+              "invalid_error_entries_are_nan": true
+            },
+            "mlp": {
+              "samples": 8000,
+              "legal_count": 7559,
+              "legal_fraction": 0.944875,
+              "legal_mean_mm": 0.6283973560074503,
+              "legal_median_mm": 0.5461966241330037,
+              "legal_p95_mm": 1.3943016494208629,
+              "legal_rmse_mm": 0.7455548529892093,
+              "success_1mm_count": 6274,
+              "success_1mm_fraction_all_targets": 0.78425,
+              "success_5mm_count": 7559,
+              "success_5mm_fraction_all_targets": 0.944875,
+              "invalid_error_entries_are_nan": true
+            },
+            "esn": {
+              "samples": 8000,
+              "legal_count": 7637,
+              "legal_fraction": 0.954625,
+              "legal_mean_mm": 3.986317765118994,
+              "legal_median_mm": 3.683838240437943,
+              "legal_p95_mm": 8.153591162649256,
+              "legal_rmse_mm": 4.572839679485173,
+              "success_1mm_count": 280,
+              "success_1mm_fraction_all_targets": 0.035,
+              "success_5mm_count": 5751,
+              "success_5mm_fraction_all_targets": 0.718875,
+              "invalid_error_entries_are_nan": true
+            }
+          },
+          "new": {
+            "analytical": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 2.8600739396286856e-14,
+              "legal_median_mm": 2.797157557069881e-14,
+              "legal_p95_mm": 6.206335383118183e-14,
+              "legal_rmse_mm": 3.385065004260337e-14,
+              "success_1mm_count": 8000,
+              "success_1mm_fraction_all_targets": 1.0,
+              "success_5mm_count": 8000,
+              "success_5mm_fraction_all_targets": 1.0,
+              "invalid_error_entries_are_nan": true
+            },
+            "mlp": {
+              "samples": 8000,
+              "legal_count": 7557,
+              "legal_fraction": 0.944625,
+              "legal_mean_mm": 0.6374975462827576,
+              "legal_median_mm": 0.5442370321472594,
+              "legal_p95_mm": 1.451968135189339,
+              "legal_rmse_mm": 0.771697252970473,
+              "success_1mm_count": 6203,
+              "success_1mm_fraction_all_targets": 0.775375,
+              "success_5mm_count": 7554,
+              "success_5mm_fraction_all_targets": 0.94425,
+              "invalid_error_entries_are_nan": true
+            },
+            "esn": {
+              "samples": 8000,
+              "legal_count": 7617,
+              "legal_fraction": 0.952125,
+              "legal_mean_mm": 4.217649216087909,
+              "legal_median_mm": 3.9045585925937973,
+              "legal_p95_mm": 8.730578169226442,
+              "legal_rmse_mm": 4.880734708959374,
+              "success_1mm_count": 390,
+              "success_1mm_fraction_all_targets": 0.04875,
+              "success_5mm_count": 5271,
+              "success_5mm_fraction_all_targets": 0.658875,
+              "invalid_error_entries_are_nan": true
+            }
+          }
+        },
+        "common": {
+          "old": {
+            "analytical": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 2.9024790775204184e-14,
+              "legal_median_mm": 2.8378026721861882e-14,
+              "legal_p95_mm": 6.206335383118183e-14,
+              "legal_rmse_mm": 3.434036831995634e-14,
+              "success_1mm_count": 8000,
+              "success_1mm_fraction_all_targets": 1.0,
+              "success_5mm_count": 8000,
+              "success_5mm_fraction_all_targets": 1.0,
+              "invalid_error_entries_are_nan": true
+            },
+            "mlp": {
+              "samples": 8000,
+              "legal_count": 7997,
+              "legal_fraction": 0.999625,
+              "legal_mean_mm": 0.6228799438238659,
+              "legal_median_mm": 0.5422971381111064,
+              "legal_p95_mm": 1.3790017211549421,
+              "legal_rmse_mm": 0.7375254673702387,
+              "success_1mm_count": 6653,
+              "success_1mm_fraction_all_targets": 0.831625,
+              "success_5mm_count": 7997,
+              "success_5mm_fraction_all_targets": 0.999625,
+              "invalid_error_entries_are_nan": true
+            },
+            "esn": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 3.9153399442711243,
+              "legal_median_mm": 3.656301270125039,
+              "legal_p95_mm": 7.917531927403238,
+              "legal_rmse_mm": 4.418890141676829,
+              "success_1mm_count": 307,
+              "success_1mm_fraction_all_targets": 0.038375,
+              "success_5mm_count": 6097,
+              "success_5mm_fraction_all_targets": 0.762125,
+              "invalid_error_entries_are_nan": true
+            }
+          },
+          "new": {
+            "analytical": {
+              "samples": 8000,
+              "legal_count": 8000,
+              "legal_fraction": 1.0,
+              "legal_mean_mm": 2.9024790775204184e-14,
+              "legal_median_mm": 2.8378026721861882e-14,
+              "legal_p95_mm": 6.206335383118183e-14,
+              "legal_rmse_mm": 3.434036831995634e-14,
+              "success_1mm_count": 8000,
+              "success_1mm_fraction_all_targets": 1.0,
+              "success_5mm_count": 8000,
+              "success_5mm_fraction_all_targets": 1.0,
+              "invalid_error_entries_are_nan": true
+            },
+            "mlp": {
+              "samples": 8000,
+              "legal_count": 7994,
+              "legal_fraction": 0.99925,
+              "legal_mean_mm": 0.6436354681501256,
+              "legal_median_mm": 0.5512362416564377,
+              "legal_p95_mm": 1.481889630778113,
+              "legal_rmse_mm": 0.7678385693981963,
+              "success_1mm_count": 6534,
+              "success_1mm_fraction_all_targets": 0.81675,
+              "success_5mm_count": 7994,
+              "success_5mm_fraction_all_targets": 0.99925,
+              "invalid_error_entries_are_nan": true
+            },
+            "esn": {
+              "samples": 8000,
+              "legal_count": 7988,
+              "legal_fraction": 0.9985,
+              "legal_mean_mm": 4.1724711772317855,
+              "legal_median_mm": 3.902412229832394,
+              "legal_p95_mm": 8.629080777338524,
+              "legal_rmse_mm": 4.750644686285227,
+              "success_1mm_count": 380,
+              "success_1mm_fraction_all_targets": 0.0475,
+              "success_5mm_count": 5597,
+              "success_5mm_fraction_all_targets": 0.699625,
+              "invalid_error_entries_are_nan": true
+            }
+          }
+        }
+      }
+    },
+    "architecture_comparison": {
+      "2dof": {
+        "mlp": {
+          "same_config": true,
+          "same_state_shapes": true,
+          "old_state_dict_total_elements": 133384,
+          "new_state_dict_total_elements": 133384
+        },
+        "esn": {
+          "same_config": true,
+          "same_state_shapes": true,
+          "old_state_dict_total_elements": 67720,
+          "new_state_dict_total_elements": 67720
+        }
+      },
+      "3dof": {
+        "mlp": {
+          "same_config": true,
+          "same_state_shapes": true,
+          "old_state_dict_total_elements": 133384,
+          "new_state_dict_total_elements": 133384
+        },
+        "esn": {
+          "same_config": true,
+          "same_state_shapes": true,
+          "old_state_dict_total_elements": 67720,
+          "new_state_dict_total_elements": 67720
+        }
+      }
+    },
+    "architecture_note": "四个IK模型的新旧checkpoint配置和全部张量形状一致，无架构或容量变化；3DOF MLP新旧均为3×256，state_dict总元素均133384。"
+  },
+  "closed_loop": {
+    "cases": [
+      {
+        "mujoco_version": "3.6.0",
+        "numpy_version": "2.2.6",
+        "torch_version": "2.11.0+cu130",
+        "device": "cpu",
+        "torch_threads": 1,
+        "sampling_dt_seconds": 0.002,
+        "scoring_warmup_steps": 100,
+        "checkpoint_sha256": {
+          "mlp": "e834826f6a2565c41c1ff06de6cd43e1b42b3d0738bdd84c00253d3abafbf375",
+          "esn": "cf645483c8f3aa701deca38a355bfd57448d56784f0e0f11bf06bf2604c143d7",
+          "lstm": "b045562145b0c556428a2add0a80734d864c2fca7ac0809a56f553501ed81173",
+          "gru": "b68906db8ae41d898892ba4f1d7703f99400387a1b636f07e639afc68a9e07dd"
+        },
+        "checkpoint_training_metadata": {
+          "mlp": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "frames_after_warmup",
+            "validation_protocol": "frames_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "epochs": 1000,
+              "batch_size": 65536,
+              "lr": 0.0003,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "esn": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "continuous_reservoir_after_warmup",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "epochs": 1000,
+              "batch_size": 65536,
+              "lr": 0.001,
+              "reservoir_dim": 512,
+              "readout_hidden": 128,
+              "spectral_radius": 0.9,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "lstm": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "training_chunk_steps": 200,
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "model_type": "lstm",
+              "epochs": 1000,
+              "batch_size": 256,
+              "lr": 0.001,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "seq_len": 200,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "gru": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "training_chunk_steps": 200,
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "model_type": "gru",
+              "epochs": 1000,
+              "batch_size": 256,
+              "lr": 0.001,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "seq_len": 200,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          }
+        },
+        "source_sha256": {
+          "src/visualize_idyn.py": "ee546ac47598a025f18b65b6669eef53d7d687e74a5cc3ceb4bc9503725dcd2e",
+          "src/data_gen_idyn.py": "bc04143ca0da3cfda85887acd45207111d8f4114f46bd76c107c0e82a37eb37d",
+          "src/mpc_controller.py": "7d185716e21681069398fc94d98054b036391533d042adff3b93479162eb38eb",
+          "src/models.py": "bce8a363f7d3c999be38cbf30ae0447cdac289468a7b5f98d538385759d55e52"
+        },
+        "simulation_xml_sha256": "1b600647f101ad5138cb9d79cef75e3198179896bedb0449c32de51f3860b713",
+        "training_data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+        "training_dataset_rng_seed": 42,
+        "label_version": 2,
+        "notes": [
+          "新旧权重都按同一条已保存参考轨迹比较；使用真实 mj_step，不覆盖旧基线。",
+          "新权重整条轨迹划分与预热协议已变化，因此前后对比反映整个重训流程，不能只归因于网络结构。",
+          "seed999/1000/1001 使用独立 RNG，与数据生成 seed 不同；同时核对训练/验证输入的 float32 精确行及参考前缀。",
+          "没有相同行不代表分布不相似；本评估只有三条常规幅值和一条增幅轨迹，不构成普遍泛化证据。",
+          "接触只记录每次 RK4 mj_step 返回的最终子阶段 ncon，不覆盖全部内部子阶段。",
+          "输出是 PD 示教总力矩前馈，不作为单独摩擦残差叠加到 MPC。"
+        ],
+        "seed": 999,
+        "amp_scale": 1,
+        "samples": 3000,
+        "old_baseline_npz_sha256": "9da04800578cd1f9dc7fb05d91e4718ccb70a0ee87e2c93e07d4874802c237ef",
+        "old_checkpoint_sha256": {
+          "mlp": "c1c90b0c0ce0fe33befa202c794e54b746d5a9d22dabe327242658af0649f90a",
+          "esn": "d5e38f4102ac79a3325da415c17a745dc51c850b32915680de93f47df282758d",
+          "lstm": "771e8834e04df50f66c309bc970b3c9d7afb59fa53db0d6f531804887e0ac3e6",
+          "gru": "cf7a5798115ee842ed9388fc1b688ed9bcaa68a83821ac5090ad1bdaff76152c"
+        },
+        "reference_source": "export/audit_simulation/baseline_seed999_amp1.npz",
+        "reference_reused_without_regeneration": true,
+        "baseline_controls_identical": {
+          "pd": true,
+          "mpc": true
+        },
+        "metrics": {
+          "pd": {
+            "old": {
+              "mean_abs_error_deg": 2.1169804186782324,
+              "mean_abs_error_deg_joint": [
+                2.7735711953833047,
+                1.8772614838704018,
+                1.7001085767809918
+              ],
+              "max_abs_error_deg": 4.614640894248882,
+              "post_warmup_mean_abs_error_deg": 2.1780237800645676,
+              "post_warmup_max_abs_error_deg": 4.614640894248882
+            },
+            "new": {
+              "mean_abs_error_deg": 2.1169804186782324,
+              "mean_abs_error_deg_joint": [
+                2.7735711953833047,
+                1.8772614838704018,
+                1.7001085767809918
+              ],
+              "max_abs_error_deg": 4.614640894248882,
+              "post_warmup_mean_abs_error_deg": 2.1780237800645676,
+              "post_warmup_max_abs_error_deg": 4.614640894248882
+            },
+            "delta_mean_abs_error_deg": 0.0,
+            "relative_change_percent": 0.0,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.7641041796605872,
+              0.6852450135543127,
+              0.3353089040144558
+            ]
+          },
+          "mpc": {
+            "old": {
+              "mean_abs_error_deg": 0.6889525230883952,
+              "mean_abs_error_deg_joint": [
+                0.7543255646792489,
+                0.6752817793589877,
+                0.6372502252269502
+              ],
+              "max_abs_error_deg": 1.8708949931153334,
+              "post_warmup_mean_abs_error_deg": 0.7073215362739198,
+              "post_warmup_max_abs_error_deg": 1.8708949931153334
+            },
+            "new": {
+              "mean_abs_error_deg": 0.6889525230883952,
+              "mean_abs_error_deg_joint": [
+                0.7543255646792489,
+                0.6752817793589877,
+                0.6372502252269502
+              ],
+              "max_abs_error_deg": 1.8708949931153334,
+              "post_warmup_mean_abs_error_deg": 0.7073215362739198,
+              "post_warmup_max_abs_error_deg": 1.8708949931153334
+            },
+            "delta_mean_abs_error_deg": 0.0,
+            "relative_change_percent": 0.0,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.7768496138266829,
+              0.6912874064216563,
+              0.3355476248807728
+            ]
+          },
+          "mlp": {
+            "old": {
+              "mean_abs_error_deg": 0.1640838179842147,
+              "mean_abs_error_deg_joint": [
+                0.3548815448400401,
+                0.0721706304973262,
+                0.06519927861527856
+              ],
+              "max_abs_error_deg": 0.8359966442588673,
+              "post_warmup_mean_abs_error_deg": 0.1658034869629576,
+              "post_warmup_max_abs_error_deg": 0.8359966442588673
+            },
+            "new": {
+              "mean_abs_error_deg": 0.16557669450984608,
+              "mean_abs_error_deg_joint": [
+                0.36741379890636106,
+                0.06244283071860911,
+                0.06687345390456753
+              ],
+              "max_abs_error_deg": 0.8735441663327536,
+              "post_warmup_mean_abs_error_deg": 0.16727832578122637,
+              "post_warmup_max_abs_error_deg": 0.8735441663327536
+            },
+            "delta_mean_abs_error_deg": 0.0014928765256313759,
+            "relative_change_percent": 0.9098255659647059,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.795943766295125,
+              0.7292561355686382,
+              0.35007737644288195
+            ]
+          },
+          "esn": {
+            "old": {
+              "mean_abs_error_deg": 0.19353834381206547,
+              "mean_abs_error_deg_joint": [
+                0.3604116836207492,
+                0.10956726452216368,
+                0.11063608329328313
+              ],
+              "max_abs_error_deg": 0.8242331062450793,
+              "post_warmup_mean_abs_error_deg": 0.19715986448093847,
+              "post_warmup_max_abs_error_deg": 0.8242331062450793
+            },
+            "new": {
+              "mean_abs_error_deg": 0.17258067977697122,
+              "mean_abs_error_deg_joint": [
+                0.34785815262218317,
+                0.08311253157718398,
+                0.08677135513154681
+              ],
+              "max_abs_error_deg": 0.888032003139512,
+              "post_warmup_mean_abs_error_deg": 0.1756397055848544,
+              "post_warmup_max_abs_error_deg": 0.888032003139512
+            },
+            "delta_mean_abs_error_deg": -0.020957664035094248,
+            "relative_change_percent": -10.82868832206454,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.8004786037082452,
+              0.7232948899450172,
+              0.3452236202914374
+            ]
+          },
+          "lstm": {
+            "old": {
+              "mean_abs_error_deg": 0.033558125496668034,
+              "mean_abs_error_deg_joint": [
+                0.03743564736705014,
+                0.03818501411694192,
+                0.02505371500601205
+              ],
+              "max_abs_error_deg": 0.1687029773091127,
+              "post_warmup_mean_abs_error_deg": 0.03293410401177661,
+              "post_warmup_max_abs_error_deg": 0.1687029773091127
+            },
+            "new": {
+              "mean_abs_error_deg": 0.03636487835233639,
+              "mean_abs_error_deg_joint": [
+                0.04149204072017439,
+                0.033204665440154275,
+                0.03439792889668054
+              ],
+              "max_abs_error_deg": 0.17765479399006068,
+              "post_warmup_mean_abs_error_deg": 0.036154003125725725,
+              "post_warmup_max_abs_error_deg": 0.17765479399006068
+            },
+            "delta_mean_abs_error_deg": 0.0028067528556683582,
+            "relative_change_percent": 8.363854697268591,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.8511113357422315,
+              0.7864974093723633,
+              0.3532778530400492
+            ]
+          },
+          "gru": {
+            "old": {
+              "mean_abs_error_deg": 0.04716803061380162,
+              "mean_abs_error_deg_joint": [
+                0.04744523651483169,
+                0.06079446833524198,
+                0.03326438699133109
+              ],
+              "max_abs_error_deg": 0.20044099397068,
+              "post_warmup_mean_abs_error_deg": 0.04721661167118402,
+              "post_warmup_max_abs_error_deg": 0.20044099397068
+            },
+            "new": {
+              "mean_abs_error_deg": 0.046960124667687765,
+              "mean_abs_error_deg_joint": [
+                0.05407582122699557,
+                0.041456415036143196,
+                0.04534813773992458
+              ],
+              "max_abs_error_deg": 0.20642759089010485,
+              "post_warmup_mean_abs_error_deg": 0.04661991323900225,
+              "post_warmup_max_abs_error_deg": 0.20642759089010485
+            },
+            "delta_mean_abs_error_deg": -0.0002079059461138552,
+            "relative_change_percent": -0.44077724553761577,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.8238961679329331,
+              0.7593274236387265,
+              0.34516417245317205
+            ]
+          }
+        },
+        "training_overlap": {
+          "mlp": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "esn": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "lstm": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "gru": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          }
+        }
+      },
+      {
+        "mujoco_version": "3.6.0",
+        "numpy_version": "2.2.6",
+        "torch_version": "2.11.0+cu130",
+        "device": "cpu",
+        "torch_threads": 1,
+        "sampling_dt_seconds": 0.002,
+        "scoring_warmup_steps": 100,
+        "checkpoint_sha256": {
+          "mlp": "e834826f6a2565c41c1ff06de6cd43e1b42b3d0738bdd84c00253d3abafbf375",
+          "esn": "cf645483c8f3aa701deca38a355bfd57448d56784f0e0f11bf06bf2604c143d7",
+          "lstm": "b045562145b0c556428a2add0a80734d864c2fca7ac0809a56f553501ed81173",
+          "gru": "b68906db8ae41d898892ba4f1d7703f99400387a1b636f07e639afc68a9e07dd"
+        },
+        "checkpoint_training_metadata": {
+          "mlp": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "frames_after_warmup",
+            "validation_protocol": "frames_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "epochs": 1000,
+              "batch_size": 65536,
+              "lr": 0.0003,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "esn": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "continuous_reservoir_after_warmup",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "epochs": 1000,
+              "batch_size": 65536,
+              "lr": 0.001,
+              "reservoir_dim": 512,
+              "readout_hidden": 128,
+              "spectral_radius": 0.9,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "lstm": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "training_chunk_steps": 200,
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "model_type": "lstm",
+              "epochs": 1000,
+              "batch_size": 256,
+              "lr": 0.001,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "seq_len": 200,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "gru": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "training_chunk_steps": 200,
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "model_type": "gru",
+              "epochs": 1000,
+              "batch_size": 256,
+              "lr": 0.001,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "seq_len": 200,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          }
+        },
+        "source_sha256": {
+          "src/visualize_idyn.py": "ee546ac47598a025f18b65b6669eef53d7d687e74a5cc3ceb4bc9503725dcd2e",
+          "src/data_gen_idyn.py": "bc04143ca0da3cfda85887acd45207111d8f4114f46bd76c107c0e82a37eb37d",
+          "src/mpc_controller.py": "7d185716e21681069398fc94d98054b036391533d042adff3b93479162eb38eb",
+          "src/models.py": "bce8a363f7d3c999be38cbf30ae0447cdac289468a7b5f98d538385759d55e52"
+        },
+        "simulation_xml_sha256": "1b600647f101ad5138cb9d79cef75e3198179896bedb0449c32de51f3860b713",
+        "training_data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+        "training_dataset_rng_seed": 42,
+        "label_version": 2,
+        "notes": [
+          "新旧权重都按同一条已保存参考轨迹比较；使用真实 mj_step，不覆盖旧基线。",
+          "新权重整条轨迹划分与预热协议已变化，因此前后对比反映整个重训流程，不能只归因于网络结构。",
+          "seed999/1000/1001 使用独立 RNG，与数据生成 seed 不同；同时核对训练/验证输入的 float32 精确行及参考前缀。",
+          "没有相同行不代表分布不相似；本评估只有三条常规幅值和一条增幅轨迹，不构成普遍泛化证据。",
+          "接触只记录每次 RK4 mj_step 返回的最终子阶段 ncon，不覆盖全部内部子阶段。",
+          "输出是 PD 示教总力矩前馈，不作为单独摩擦残差叠加到 MPC。"
+        ],
+        "seed": 1000,
+        "amp_scale": 1,
+        "samples": 3000,
+        "old_baseline_npz_sha256": "a0a6b4056c0118d797675c37e3b13e2730b620f67255cb2dec4d461c1a2871a0",
+        "old_checkpoint_sha256": {
+          "mlp": "c1c90b0c0ce0fe33befa202c794e54b746d5a9d22dabe327242658af0649f90a",
+          "esn": "d5e38f4102ac79a3325da415c17a745dc51c850b32915680de93f47df282758d",
+          "lstm": "771e8834e04df50f66c309bc970b3c9d7afb59fa53db0d6f531804887e0ac3e6",
+          "gru": "cf7a5798115ee842ed9388fc1b688ed9bcaa68a83821ac5090ad1bdaff76152c"
+        },
+        "reference_source": "export/audit_simulation/baseline_seed1000_amp1.npz",
+        "reference_reused_without_regeneration": true,
+        "baseline_controls_identical": {
+          "pd": true,
+          "mpc": true
+        },
+        "metrics": {
+          "pd": {
+            "old": {
+              "mean_abs_error_deg": 2.186172478698136,
+              "mean_abs_error_deg_joint": [
+                2.546039577578748,
+                2.1091859886540623,
+                1.903291869861594
+              ],
+              "max_abs_error_deg": 4.822417414599946,
+              "post_warmup_mean_abs_error_deg": 2.2369760049811642,
+              "post_warmup_max_abs_error_deg": 4.822417414599946
+            },
+            "new": {
+              "mean_abs_error_deg": 2.186172478698136,
+              "mean_abs_error_deg_joint": [
+                2.546039577578748,
+                2.1091859886540623,
+                1.903291869861594
+              ],
+              "max_abs_error_deg": 4.822417414599946,
+              "post_warmup_mean_abs_error_deg": 2.2369760049811642,
+              "post_warmup_max_abs_error_deg": 4.822417414599946
+            },
+            "delta_mean_abs_error_deg": 0.0,
+            "relative_change_percent": 0.0,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.7379799049800886,
+              0.7750814124829963,
+              0.3644756459864175
+            ]
+          },
+          "mpc": {
+            "old": {
+              "mean_abs_error_deg": 0.7081548582863764,
+              "mean_abs_error_deg_joint": [
+                0.6625472004671203,
+                0.5653981960971246,
+                0.8965191782948825
+              ],
+              "max_abs_error_deg": 1.9898759540725428,
+              "post_warmup_mean_abs_error_deg": 0.723149094288855,
+              "post_warmup_max_abs_error_deg": 1.9898759540725428
+            },
+            "new": {
+              "mean_abs_error_deg": 0.7081548582863764,
+              "mean_abs_error_deg_joint": [
+                0.6625472004671203,
+                0.5653981960971246,
+                0.8965191782948825
+              ],
+              "max_abs_error_deg": 1.9898759540725428,
+              "post_warmup_mean_abs_error_deg": 0.723149094288855,
+              "post_warmup_max_abs_error_deg": 1.9898759540725428
+            },
+            "delta_mean_abs_error_deg": 0.0,
+            "relative_change_percent": 0.0,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.751136157399637,
+              0.7814832485246941,
+              0.36143821205418875
+            ]
+          },
+          "mlp": {
+            "old": {
+              "mean_abs_error_deg": 0.20349635541228914,
+              "mean_abs_error_deg_joint": [
+                0.2572174500995064,
+                0.12185978526878265,
+                0.23141183086857772
+              ],
+              "max_abs_error_deg": 0.7000100358174309,
+              "post_warmup_mean_abs_error_deg": 0.20603334540696755,
+              "post_warmup_max_abs_error_deg": 0.7000100358174309
+            },
+            "new": {
+              "mean_abs_error_deg": 0.19333752948259317,
+              "mean_abs_error_deg_joint": [
+                0.23751876499223423,
+                0.11932457092831933,
+                0.22316925252722544
+              ],
+              "max_abs_error_deg": 0.6922707389629574,
+              "post_warmup_mean_abs_error_deg": 0.19519525070645768,
+              "post_warmup_max_abs_error_deg": 0.6922707389629574
+            },
+            "delta_mean_abs_error_deg": -0.01015882592969597,
+            "relative_change_percent": -4.99214146077157,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.8130964538817302,
+              0.8202865386945556,
+              0.3631383695130259
+            ]
+          },
+          "esn": {
+            "old": {
+              "mean_abs_error_deg": 0.2199702415843524,
+              "mean_abs_error_deg_joint": [
+                0.2717800431781058,
+                0.1440798184921024,
+                0.2440508630828498
+              ],
+              "max_abs_error_deg": 0.8849016101920288,
+              "post_warmup_mean_abs_error_deg": 0.22275289241933682,
+              "post_warmup_max_abs_error_deg": 0.8849016101920288
+            },
+            "new": {
+              "mean_abs_error_deg": 0.20594687719964658,
+              "mean_abs_error_deg_joint": [
+                0.2825605371661167,
+                0.1273659585809217,
+                0.20791413585190155
+              ],
+              "max_abs_error_deg": 0.6598659306302609,
+              "post_warmup_mean_abs_error_deg": 0.20926197490201667,
+              "post_warmup_max_abs_error_deg": 0.6598659306302609
+            },
+            "delta_mean_abs_error_deg": -0.014023364384705833,
+            "relative_change_percent": -6.375118872308128,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.8067862391471863,
+              0.8167640075849909,
+              0.41288286447525024
+            ]
+          },
+          "lstm": {
+            "old": {
+              "mean_abs_error_deg": 0.04921131029597031,
+              "mean_abs_error_deg_joint": [
+                0.044896699901700844,
+                0.051101832350273026,
+                0.05163539863593719
+              ],
+              "max_abs_error_deg": 0.21021449125524477,
+              "post_warmup_mean_abs_error_deg": 0.050223813695968365,
+              "post_warmup_max_abs_error_deg": 0.21021449125524477
+            },
+            "new": {
+              "mean_abs_error_deg": 0.05883817109385283,
+              "mean_abs_error_deg_joint": [
+                0.04535446713277905,
+                0.060927015304947686,
+                0.07023303084383149
+              ],
+              "max_abs_error_deg": 0.2455456870475346,
+              "post_warmup_mean_abs_error_deg": 0.06013751903517711,
+              "post_warmup_max_abs_error_deg": 0.2455456870475346
+            },
+            "delta_mean_abs_error_deg": 0.009626860797882518,
+            "relative_change_percent": 19.56229318013265,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.8809083088905248,
+              0.8852674063456024,
+              0.41673861479180385
+            ]
+          },
+          "gru": {
+            "old": {
+              "mean_abs_error_deg": 0.05142143532366881,
+              "mean_abs_error_deg_joint": [
+                0.05410371036355159,
+                0.0471663114610503,
+                0.052994284146404655
+              ],
+              "max_abs_error_deg": 0.20741548566253784,
+              "post_warmup_mean_abs_error_deg": 0.05261816419657479,
+              "post_warmup_max_abs_error_deg": 0.20741548566253784
+            },
+            "new": {
+              "mean_abs_error_deg": 0.05340190138767911,
+              "mean_abs_error_deg_joint": [
+                0.05662674972820261,
+                0.04925189872922348,
+                0.054327055705611436
+              ],
+              "max_abs_error_deg": 0.19768526117306098,
+              "post_warmup_mean_abs_error_deg": 0.054671264131480275,
+              "post_warmup_max_abs_error_deg": 0.19768526117306098
+            },
+            "delta_mean_abs_error_deg": 0.001980466064010304,
+            "relative_change_percent": 3.8514406522190514,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.8306683442796043,
+              0.8926242605363138,
+              0.3818983142392919
+            ]
+          }
+        },
+        "training_overlap": {
+          "mlp": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "esn": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "lstm": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "gru": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          }
+        }
+      },
+      {
+        "mujoco_version": "3.6.0",
+        "numpy_version": "2.2.6",
+        "torch_version": "2.11.0+cu130",
+        "device": "cpu",
+        "torch_threads": 1,
+        "sampling_dt_seconds": 0.002,
+        "scoring_warmup_steps": 100,
+        "checkpoint_sha256": {
+          "mlp": "e834826f6a2565c41c1ff06de6cd43e1b42b3d0738bdd84c00253d3abafbf375",
+          "esn": "cf645483c8f3aa701deca38a355bfd57448d56784f0e0f11bf06bf2604c143d7",
+          "lstm": "b045562145b0c556428a2add0a80734d864c2fca7ac0809a56f553501ed81173",
+          "gru": "b68906db8ae41d898892ba4f1d7703f99400387a1b636f07e639afc68a9e07dd"
+        },
+        "checkpoint_training_metadata": {
+          "mlp": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "frames_after_warmup",
+            "validation_protocol": "frames_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "epochs": 1000,
+              "batch_size": 65536,
+              "lr": 0.0003,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "esn": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "continuous_reservoir_after_warmup",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "epochs": 1000,
+              "batch_size": 65536,
+              "lr": 0.001,
+              "reservoir_dim": 512,
+              "readout_hidden": 128,
+              "spectral_radius": 0.9,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "lstm": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "training_chunk_steps": 200,
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "model_type": "lstm",
+              "epochs": 1000,
+              "batch_size": 256,
+              "lr": 0.001,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "seq_len": 200,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "gru": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "training_chunk_steps": 200,
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "model_type": "gru",
+              "epochs": 1000,
+              "batch_size": 256,
+              "lr": 0.001,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "seq_len": 200,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          }
+        },
+        "source_sha256": {
+          "src/visualize_idyn.py": "ee546ac47598a025f18b65b6669eef53d7d687e74a5cc3ceb4bc9503725dcd2e",
+          "src/data_gen_idyn.py": "bc04143ca0da3cfda85887acd45207111d8f4114f46bd76c107c0e82a37eb37d",
+          "src/mpc_controller.py": "7d185716e21681069398fc94d98054b036391533d042adff3b93479162eb38eb",
+          "src/models.py": "bce8a363f7d3c999be38cbf30ae0447cdac289468a7b5f98d538385759d55e52"
+        },
+        "simulation_xml_sha256": "1b600647f101ad5138cb9d79cef75e3198179896bedb0449c32de51f3860b713",
+        "training_data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+        "training_dataset_rng_seed": 42,
+        "label_version": 2,
+        "notes": [
+          "新旧权重都按同一条已保存参考轨迹比较；使用真实 mj_step，不覆盖旧基线。",
+          "新权重整条轨迹划分与预热协议已变化，因此前后对比反映整个重训流程，不能只归因于网络结构。",
+          "seed999/1000/1001 使用独立 RNG，与数据生成 seed 不同；同时核对训练/验证输入的 float32 精确行及参考前缀。",
+          "没有相同行不代表分布不相似；本评估只有三条常规幅值和一条增幅轨迹，不构成普遍泛化证据。",
+          "接触只记录每次 RK4 mj_step 返回的最终子阶段 ncon，不覆盖全部内部子阶段。",
+          "输出是 PD 示教总力矩前馈，不作为单独摩擦残差叠加到 MPC。"
+        ],
+        "seed": 1001,
+        "amp_scale": 1,
+        "samples": 3000,
+        "old_baseline_npz_sha256": "16e6090a2e0b060568ac7af7b24af706f532f0eaaa2ddd16f653219d122a30be",
+        "old_checkpoint_sha256": {
+          "mlp": "c1c90b0c0ce0fe33befa202c794e54b746d5a9d22dabe327242658af0649f90a",
+          "esn": "d5e38f4102ac79a3325da415c17a745dc51c850b32915680de93f47df282758d",
+          "lstm": "771e8834e04df50f66c309bc970b3c9d7afb59fa53db0d6f531804887e0ac3e6",
+          "gru": "cf7a5798115ee842ed9388fc1b688ed9bcaa68a83821ac5090ad1bdaff76152c"
+        },
+        "reference_source": "export/audit_simulation/baseline_seed1001_amp1.npz",
+        "reference_reused_without_regeneration": true,
+        "baseline_controls_identical": {
+          "pd": true,
+          "mpc": true
+        },
+        "metrics": {
+          "pd": {
+            "old": {
+              "mean_abs_error_deg": 2.2973333195271057,
+              "mean_abs_error_deg_joint": [
+                2.8213271905994977,
+                2.273078733707921,
+                1.7975940342738985
+              ],
+              "max_abs_error_deg": 4.801495181428924,
+              "post_warmup_mean_abs_error_deg": 2.340812673981266,
+              "post_warmup_max_abs_error_deg": 4.801495181428924
+            },
+            "new": {
+              "mean_abs_error_deg": 2.2973333195271057,
+              "mean_abs_error_deg_joint": [
+                2.8213271905994977,
+                2.273078733707921,
+                1.7975940342738985
+              ],
+              "max_abs_error_deg": 4.801495181428924,
+              "post_warmup_mean_abs_error_deg": 2.340812673981266,
+              "post_warmup_max_abs_error_deg": 4.801495181428924
+            },
+            "delta_mean_abs_error_deg": 0.0,
+            "relative_change_percent": 0.0,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.5989132649648923,
+              0.7264249265170739,
+              0.39969374025471455
+            ]
+          },
+          "mpc": {
+            "old": {
+              "mean_abs_error_deg": 0.7864566658651555,
+              "mean_abs_error_deg_joint": [
+                0.9109386408592203,
+                0.7437869595854589,
+                0.7046443971507882
+              ],
+              "max_abs_error_deg": 2.0813087960195626,
+              "post_warmup_mean_abs_error_deg": 0.8050258600533339,
+              "post_warmup_max_abs_error_deg": 2.0813087960195626
+            },
+            "new": {
+              "mean_abs_error_deg": 0.7864566658651555,
+              "mean_abs_error_deg_joint": [
+                0.9109386408592203,
+                0.7437869595854589,
+                0.7046443971507882
+              ],
+              "max_abs_error_deg": 2.0813087960195626,
+              "post_warmup_mean_abs_error_deg": 0.8050258600533339,
+              "post_warmup_max_abs_error_deg": 2.0813087960195626
+            },
+            "delta_mean_abs_error_deg": 0.0,
+            "relative_change_percent": 0.0,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.6018421000776508,
+              0.7301237938011947,
+              0.39624888417452153
+            ]
+          },
+          "mlp": {
+            "old": {
+              "mean_abs_error_deg": 0.16816926865194146,
+              "mean_abs_error_deg_joint": [
+                0.27248720732914317,
+                0.09984885963434859,
+                0.13217173899233364
+              ],
+              "max_abs_error_deg": 0.5858816919687466,
+              "post_warmup_mean_abs_error_deg": 0.1729473464263101,
+              "post_warmup_max_abs_error_deg": 0.5858816919687466
+            },
+            "new": {
+              "mean_abs_error_deg": 0.17100353230910914,
+              "mean_abs_error_deg_joint": [
+                0.2682332056875625,
+                0.09390810610560785,
+                0.15086928513415726
+              ],
+              "max_abs_error_deg": 0.5764460787238975,
+              "post_warmup_mean_abs_error_deg": 0.17546570417363783,
+              "post_warmup_max_abs_error_deg": 0.5764460787238975
+            },
+            "delta_mean_abs_error_deg": 0.002834263657167685,
+            "relative_change_percent": 1.6853636100622849,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.6729748054141984,
+              0.7408404710202727,
+              0.4306985153948864
+            ]
+          },
+          "esn": {
+            "old": {
+              "mean_abs_error_deg": 0.20644759318238567,
+              "mean_abs_error_deg_joint": [
+                0.354849273958064,
+                0.1102657951046097,
+                0.1542277104844845
+              ],
+              "max_abs_error_deg": 0.9382042880968515,
+              "post_warmup_mean_abs_error_deg": 0.21153128278580846,
+              "post_warmup_max_abs_error_deg": 0.9382042880968515
+            },
+            "new": {
+              "mean_abs_error_deg": 0.20197266245010737,
+              "mean_abs_error_deg_joint": [
+                0.35170270521144453,
+                0.1171187182999314,
+                0.13709656383894572
+              ],
+              "max_abs_error_deg": 0.8026219587997259,
+              "post_warmup_mean_abs_error_deg": 0.20772084681681707,
+              "post_warmup_max_abs_error_deg": 0.8026219587997259
+            },
+            "delta_mean_abs_error_deg": -0.004474930732278309,
+            "relative_change_percent": -2.167586777495123,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.6673982950499556,
+              0.7416749000549316,
+              0.4096923999221963
+            ]
+          },
+          "lstm": {
+            "old": {
+              "mean_abs_error_deg": 0.03956559139291172,
+              "mean_abs_error_deg_joint": [
+                0.03693290118165264,
+                0.037537827822959724,
+                0.0442260451741229
+              ],
+              "max_abs_error_deg": 0.1787489861033909,
+              "post_warmup_mean_abs_error_deg": 0.040565885653089266,
+              "post_warmup_max_abs_error_deg": 0.1787489861033909
+            },
+            "new": {
+              "mean_abs_error_deg": 0.04243641338622607,
+              "mean_abs_error_deg_joint": [
+                0.03731301464196525,
+                0.04437915806509189,
+                0.04561706745162128
+              ],
+              "max_abs_error_deg": 0.24894529014054614,
+              "post_warmup_mean_abs_error_deg": 0.04357860169997667,
+              "post_warmup_max_abs_error_deg": 0.24894529014054614
+            },
+            "delta_mean_abs_error_deg": 0.00287082199331435,
+            "relative_change_percent": 7.25585513130651,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.7369406339146427,
+              0.8457447943180938,
+              0.4411122003201079
+            ]
+          },
+          "gru": {
+            "old": {
+              "mean_abs_error_deg": 0.05208811007475394,
+              "mean_abs_error_deg_joint": [
+                0.06363609275743465,
+                0.05147695414666297,
+                0.04115128332016425
+              ],
+              "max_abs_error_deg": 0.24187947950584104,
+              "post_warmup_mean_abs_error_deg": 0.05339568387534843,
+              "post_warmup_max_abs_error_deg": 0.24187947950584104
+            },
+            "new": {
+              "mean_abs_error_deg": 0.04551606284860041,
+              "mean_abs_error_deg_joint": [
+                0.05357013471945897,
+                0.04674923010352838,
+                0.03622882372281404
+              ],
+              "max_abs_error_deg": 0.21538610782313397,
+              "post_warmup_mean_abs_error_deg": 0.0465277408561721,
+              "post_warmup_max_abs_error_deg": 0.21538610782313397
+            },
+            "delta_mean_abs_error_deg": -0.006572047226153531,
+            "relative_change_percent": -12.617173509888724,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              0.6947189763215396,
+              0.7955317034022588,
+              0.43242479690173874
+            ]
+          }
+        },
+        "training_overlap": {
+          "mlp": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "esn": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "lstm": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "gru": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          }
+        }
+      },
+      {
+        "mujoco_version": "3.6.0",
+        "numpy_version": "2.2.6",
+        "torch_version": "2.11.0+cu130",
+        "device": "cpu",
+        "torch_threads": 1,
+        "sampling_dt_seconds": 0.002,
+        "scoring_warmup_steps": 100,
+        "checkpoint_sha256": {
+          "mlp": "e834826f6a2565c41c1ff06de6cd43e1b42b3d0738bdd84c00253d3abafbf375",
+          "esn": "cf645483c8f3aa701deca38a355bfd57448d56784f0e0f11bf06bf2604c143d7",
+          "lstm": "b045562145b0c556428a2add0a80734d864c2fca7ac0809a56f553501ed81173",
+          "gru": "b68906db8ae41d898892ba4f1d7703f99400387a1b636f07e639afc68a9e07dd"
+        },
+        "checkpoint_training_metadata": {
+          "mlp": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "frames_after_warmup",
+            "validation_protocol": "frames_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "epochs": 1000,
+              "batch_size": 65536,
+              "lr": 0.0003,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "esn": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "continuous_reservoir_after_warmup",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "epochs": 1000,
+              "batch_size": 65536,
+              "lr": 0.001,
+              "reservoir_dim": 512,
+              "readout_hidden": 128,
+              "spectral_radius": 0.9,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "lstm": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "training_chunk_steps": 200,
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "model_type": "lstm",
+              "epochs": 1000,
+              "batch_size": 256,
+              "lr": 0.001,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "seq_len": 200,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          },
+          "gru": {
+            "task": "inverse_dynamics_feedforward",
+            "target": "outputs",
+            "target_definition": "PD_teacher_total_torque_command_Nm",
+            "input_definition": "[q_des1,q_des2,q_des3,dq_des1,dq_des2,dq_des3]",
+            "sampling_dt_seconds": 0.0020000000949949026,
+            "label_version": 2,
+            "train_trajectory_ids": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "validation_trajectory_ids": [
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "normalization": "all_training_trajectory_inputs_only",
+            "warmup_steps": 100,
+            "train_loss_samples": 93600,
+            "validation_loss_samples": 23400,
+            "train_protocol": "stateless_chunks_with_startup_loss_mask_and_incomplete_tail_dropped",
+            "validation_protocol": "continuous_trajectory_after_warmup",
+            "data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+            "training_chunk_steps": 200,
+            "experiment": "full_retrain_20261110",
+            "random_seed": 42,
+            "training_arguments": {
+              "model_type": "gru",
+              "epochs": 1000,
+              "batch_size": 256,
+              "lr": 0.001,
+              "hidden_dim": 256,
+              "n_layers": 4,
+              "seq_len": 200,
+              "warmup_steps": 100,
+              "device_str": "cuda"
+            },
+            "torch_version": "2.11.0+cu130",
+            "training_device": "NVIDIA GeForce RTX 4090"
+          }
+        },
+        "source_sha256": {
+          "src/visualize_idyn.py": "ee546ac47598a025f18b65b6669eef53d7d687e74a5cc3ceb4bc9503725dcd2e",
+          "src/data_gen_idyn.py": "bc04143ca0da3cfda85887acd45207111d8f4114f46bd76c107c0e82a37eb37d",
+          "src/mpc_controller.py": "7d185716e21681069398fc94d98054b036391533d042adff3b93479162eb38eb",
+          "src/models.py": "bce8a363f7d3c999be38cbf30ae0447cdac289468a7b5f98d538385759d55e52"
+        },
+        "simulation_xml_sha256": "1b600647f101ad5138cb9d79cef75e3198179896bedb0449c32de51f3860b713",
+        "training_data_sha256": "7c5160168cb222f29cfa1be680def4e57df7d778fe3861ef0ecef1f774f19021",
+        "training_dataset_rng_seed": 42,
+        "label_version": 2,
+        "notes": [
+          "新旧权重都按同一条已保存参考轨迹比较；使用真实 mj_step，不覆盖旧基线。",
+          "新权重整条轨迹划分与预热协议已变化，因此前后对比反映整个重训流程，不能只归因于网络结构。",
+          "seed999/1000/1001 使用独立 RNG，与数据生成 seed 不同；同时核对训练/验证输入的 float32 精确行及参考前缀。",
+          "没有相同行不代表分布不相似；本评估只有三条常规幅值和一条增幅轨迹，不构成普遍泛化证据。",
+          "接触只记录每次 RK4 mj_step 返回的最终子阶段 ncon，不覆盖全部内部子阶段。",
+          "输出是 PD 示教总力矩前馈，不作为单独摩擦残差叠加到 MPC。"
+        ],
+        "seed": 999,
+        "amp_scale": 2,
+        "samples": 3000,
+        "old_baseline_npz_sha256": "16515f851db7a372b4de585078bd9c932ae5921bc815cc2a1ea815a5f2828449",
+        "old_checkpoint_sha256": {
+          "mlp": "c1c90b0c0ce0fe33befa202c794e54b746d5a9d22dabe327242658af0649f90a",
+          "esn": "d5e38f4102ac79a3325da415c17a745dc51c850b32915680de93f47df282758d",
+          "lstm": "771e8834e04df50f66c309bc970b3c9d7afb59fa53db0d6f531804887e0ac3e6",
+          "gru": "cf7a5798115ee842ed9388fc1b688ed9bcaa68a83821ac5090ad1bdaff76152c"
+        },
+        "reference_source": "export/audit_simulation/baseline_seed999_amp2.npz",
+        "reference_reused_without_regeneration": true,
+        "baseline_controls_identical": {
+          "pd": true,
+          "mpc": true
+        },
+        "metrics": {
+          "pd": {
+            "old": {
+              "mean_abs_error_deg": 2.433015810838587,
+              "mean_abs_error_deg_joint": [
+                3.3542388599404904,
+                2.013860708966359,
+                1.9309478636089126
+              ],
+              "max_abs_error_deg": 5.849810477017684,
+              "post_warmup_mean_abs_error_deg": 2.498992694634709,
+              "post_warmup_max_abs_error_deg": 5.849810477017684
+            },
+            "new": {
+              "mean_abs_error_deg": 2.433015810838587,
+              "mean_abs_error_deg_joint": [
+                3.3542388599404904,
+                2.013860708966359,
+                1.9309478636089126
+              ],
+              "max_abs_error_deg": 5.849810477017684,
+              "post_warmup_mean_abs_error_deg": 2.498992694634709,
+              "post_warmup_max_abs_error_deg": 5.849810477017684
+            },
+            "delta_mean_abs_error_deg": 0.0,
+            "relative_change_percent": 0.0,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              1.048264562140833,
+              0.7515916778631551,
+              0.3806747556686523
+            ]
+          },
+          "mpc": {
+            "old": {
+              "mean_abs_error_deg": 0.7723813598750512,
+              "mean_abs_error_deg_joint": [
+                0.8896164074777473,
+                0.7289890577464359,
+                0.6985386144009672
+              ],
+              "max_abs_error_deg": 2.1611868820940434,
+              "post_warmup_mean_abs_error_deg": 0.7929994781971088,
+              "post_warmup_max_abs_error_deg": 2.1611868820940434
+            },
+            "new": {
+              "mean_abs_error_deg": 0.7723813598750512,
+              "mean_abs_error_deg_joint": [
+                0.8896164074777473,
+                0.7289890577464359,
+                0.6985386144009672
+              ],
+              "max_abs_error_deg": 2.1611868820940434,
+              "post_warmup_mean_abs_error_deg": 0.7929994781971088,
+              "post_warmup_max_abs_error_deg": 2.1611868820940434
+            },
+            "delta_mean_abs_error_deg": 0.0,
+            "relative_change_percent": 0.0,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              1.0630306641896867,
+              0.7539278792693809,
+              0.37986293151132966
+            ]
+          },
+          "mlp": {
+            "old": {
+              "mean_abs_error_deg": 0.27552653533066074,
+              "mean_abs_error_deg_joint": [
+                0.6092251236800078,
+                0.12210775798774862,
+                0.09524672432422589
+              ],
+              "max_abs_error_deg": 1.5753039373900548,
+              "post_warmup_mean_abs_error_deg": 0.27772643384730217,
+              "post_warmup_max_abs_error_deg": 1.5753039373900548
+            },
+            "new": {
+              "mean_abs_error_deg": 0.2643994715785568,
+              "mean_abs_error_deg_joint": [
+                0.6215740484234478,
+                0.08334346371526724,
+                0.08828090259695563
+              ],
+              "max_abs_error_deg": 1.527899749335347,
+              "post_warmup_mean_abs_error_deg": 0.26646861644246167,
+              "post_warmup_max_abs_error_deg": 1.527899749335347
+            },
+            "delta_mean_abs_error_deg": -0.011127063752103927,
+            "relative_change_percent": -4.038472642480794,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              1.0710191576666577,
+              0.801435502527512,
+              0.38818458981455306
+            ]
+          },
+          "esn": {
+            "old": {
+              "mean_abs_error_deg": 0.32130104318133124,
+              "mean_abs_error_deg_joint": [
+                0.5789093886205683,
+                0.18296193090060967,
+                0.2020318100228174
+              ],
+              "max_abs_error_deg": 1.7426726947871853,
+              "post_warmup_mean_abs_error_deg": 0.3260341575444467,
+              "post_warmup_max_abs_error_deg": 1.7426726947871853
+            },
+            "new": {
+              "mean_abs_error_deg": 0.28796169345281175,
+              "mean_abs_error_deg_joint": [
+                0.5469808813080486,
+                0.1764285102395428,
+                0.14047568881084202
+              ],
+              "max_abs_error_deg": 1.8688996992852211,
+              "post_warmup_mean_abs_error_deg": 0.29299634438214994,
+              "post_warmup_max_abs_error_deg": 1.8688996992852211
+            },
+            "delta_mean_abs_error_deg": -0.033339349728519485,
+            "relative_change_percent": -10.376359005377989,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              1.1145966092420223,
+              0.7887464510410347,
+              0.3933926968194468
+            ]
+          },
+          "lstm": {
+            "old": {
+              "mean_abs_error_deg": 0.11154974794945148,
+              "mean_abs_error_deg_joint": [
+                0.19004304562173255,
+                0.06799707143775092,
+                0.07660912678887077
+              ],
+              "max_abs_error_deg": 0.5024855266823813,
+              "post_warmup_mean_abs_error_deg": 0.11233387173723887,
+              "post_warmup_max_abs_error_deg": 0.5024855266823813
+            },
+            "new": {
+              "mean_abs_error_deg": 0.1079202741784921,
+              "mean_abs_error_deg_joint": [
+                0.1923639264316017,
+                0.06062618013450068,
+                0.07077071596937373
+              ],
+              "max_abs_error_deg": 0.6152512907136454,
+              "post_warmup_mean_abs_error_deg": 0.10837266824279759,
+              "post_warmup_max_abs_error_deg": 0.6152512907136454
+            },
+            "delta_mean_abs_error_deg": -0.003629473770959374,
+            "relative_change_percent": -3.2536817318530087,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              1.0791895701696799,
+              0.8485929555250497,
+              0.4060509831673575
+            ]
+          },
+          "gru": {
+            "old": {
+              "mean_abs_error_deg": 0.06946302968768145,
+              "mean_abs_error_deg_joint": [
+                0.10738995547971543,
+                0.0528065660001741,
+                0.04819256758315502
+              ],
+              "max_abs_error_deg": 0.26668871141708633,
+              "post_warmup_mean_abs_error_deg": 0.06941354671044762,
+              "post_warmup_max_abs_error_deg": 0.26668871141708633
+            },
+            "new": {
+              "mean_abs_error_deg": 0.061779527702867855,
+              "mean_abs_error_deg_joint": [
+                0.08853295075432663,
+                0.050811630073839154,
+                0.04599400228043758
+              ],
+              "max_abs_error_deg": 0.31193601264105014,
+              "post_warmup_mean_abs_error_deg": 0.060668677618393105,
+              "post_warmup_max_abs_error_deg": 0.2395057512485136
+            },
+            "delta_mean_abs_error_deg": -0.007683501984813594,
+            "relative_change_percent": -11.061282554705764,
+            "all_values_finite": true,
+            "joint_limit_violation_steps": 0,
+            "actuator_saturation_steps": 0,
+            "max_contact_count": 0,
+            "steps_with_contact": 0,
+            "max_abs_command_Nm_joint": [
+              1.0848923247658122,
+              0.8348322176536086,
+              0.3973548837904695
+            ]
+          }
+        },
+        "training_overlap": {
+          "mlp": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "esn": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "lstm": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          },
+          "gru": {
+            "training": {
+              "trajectory_ids": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            },
+            "validation": {
+              "trajectory_ids": [
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+              ],
+              "identical_input_row_count": 0,
+              "matching_entire_evaluation_prefix_trajectory_ids": []
+            }
+          }
+        }
+      }
+    ],
+    "amplitude1_three_seed_mean_MAE_deg": {
+      "pd": {
+        "old": 2.2001620723011577,
+        "new": 2.2001620723011577
+      },
+      "mpc": {
+        "old": 0.7278546824133091,
+        "new": 0.7278546824133091
+      },
+      "mlp": {
+        "old": 0.17858314734948177,
+        "new": 0.17663925210051612
+      },
+      "esn": {
+        "old": 0.20665205952626786,
+        "new": 0.1935000731422417
+      },
+      "lstm": {
+        "old": 0.04077834239518335,
+        "new": 0.04587982094413843
+      },
+      "gru": {
+        "old": 0.050225858670741454,
+        "new": 0.04862602963465576
+      }
+    }
+  },
+  "closed_loop_health": {
+    "runs": 24,
+    "all_finite": true,
+    "joint_limit_violation_steps": 0,
+    "actuator_saturation_steps": 0,
+    "max_contact_count": 0,
+    "steps_with_contact": 0,
+    "max_abs_command_Nm_joint": [
+      1.1145966092420223,
+      0.8926242605363138,
+      0.4411122003201079
+    ],
+    "max_abs_angle_error_deg": 5.849810477017684,
+    "all_baseline_controls_identical": true,
+    "all_training_and_validation_identical_rows_zero": true,
+    "all_training_and_validation_prefix_matches_absent": true
+  },
+  "verification": {
+    "pytest_passed": 115,
+    "pytest_elapsed_seconds": 4.65,
+    "git_diff_check": "passed",
+    "weight_storage": "cpu"
+  }
+}
