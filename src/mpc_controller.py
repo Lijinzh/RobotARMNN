@@ -3,14 +3,14 @@
 
 提供两种控制器：
 
-1. ComputedTorqueControl (CTC) — 计算力矩控制（推荐）
+1. ComputedTorqueControl (CTC) — 刚体模型前馈 + 力矩 PD 反馈
    ----------------------------------------------------------
-   理论：对非线性动力学方程精确求逆，将系统解耦为线性双积分器。
+   当前实现补偿刚体惯性和偏置力，PD 在力矩域纠偏：
 
        M(q) q̈ = τ - c(q, dq)
-       →  τ = M(q) [q̈_des + Kp(q_des-q) + Kd(dq_des-dq)] + c(q, dq)
+       →  τ = M(q) q̈_des + c(q, dq) + Kp(q_des-q) + Kd(dq_des-dq)
 
-   内环 PD 仅需承担模型误差（摩擦等）。
+   本实现的 PD 增益不乘质量矩阵，不等同于精确解耦的加速度域 PD。
    每步计算量仅为 1 次矩阵向量乘法，< 0.05 ms。
 
 2. LinearMPC — 解析 QP 线性化 MPC（去掉 scipy，纯 numpy 求解）
@@ -21,7 +21,7 @@
    比原来 scipy L-BFGS-B 迭代快 10-50 倍。
 
 用法：
-    # CTC（推荐，最快最准）
+    # 刚体前馈与力矩 PD
     ctc = ComputedTorqueControl(n_joint=3, tau_max=50.0)
     tau = ctc.compute(mjmodel, data, q_cur, dq_cur, q_des, dq_des, ddq_des, j_ids)
 
@@ -68,8 +68,8 @@ class ComputedTorqueControl:
     每步计算量：1次 mj_fullM + 1次矩阵乘法，< 0.05 ms，
     与纯 PD 方案执行速度几乎相同。
 
-    注意：CTC 本身无法补偿摩擦（不在刚体动力学模型中），
-    配合 GRU 前馈可以进一步降低误差。
+    注意：本实现只使用质量矩阵和 qfrc_bias，未补偿 passive/constraint 摩擦力。
+    当前 GRU 学习总力矩，不能直接作为摩擦残差叠加；需另定义残差并训练。
     """
 
     def __init__(

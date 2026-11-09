@@ -1,9 +1,9 @@
 <mujoco model="3dof_spatial_arm_friction">
-  <!-- 三自由度空间机械臂 —— 带摩擦迟滞版（逆动力学学习 Demo 用）
+  <!-- 三自由度空间机械臂 —— 带摩擦版（逆动力学学习 Demo 用）
        在标准版基础上增加：
-         frictionloss  — Coulomb 静/动摩擦（产生迟滞，ESN 的核心学习目标）
+         frictionloss  — 由约束求解器处理的 Coulomb 摩擦损失
          damping 加大  — 粘性摩擦
-       两者组合近似 Stribeck 曲线（低速大摩擦、高速小摩擦）
+       此模型没有独立的摩擦迟滞状态，也不等同于 Stribeck 速度弱化模型。
        
        参数对应真实桌面机械臂（力矩约 2-6 N·m 量级）：
          joint1（底座）：摩擦最大（载荷最重）
