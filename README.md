@@ -98,11 +98,12 @@ RobotARMNN/
 │       ├── data_gen_idyn.py        # IDyn 数据生成（MuJoCo 高刚度 PD 激励，30 条轨迹）
 │       ├── train_idyn.py           # IDyn 训练脚本（MLP / ESN / LSTM / GRU）
         ├── mpc_controller.py       # 🆕 MPC 控制器（滚动预测优化 / 解析 QP，去除 scipy 迭代）
-        └── visualize_idyn.py       # IDyn 控制误差对比图（PD/MPC/MPC+GRU/NN，自动保存）
+        └── visualize_idyn.py       # IDyn 控制误差对比图（PD/MPC/NN，自动保存）
 │
 ├── tests/
 │   ├── __init__.py
-│   └── test_kinematics.py          # 18 项运动学单元测试
+│   ├── test_kinematics.py          # 运动学单元测试
+│   └── test_*regressions.py        # IK、控制展示和训练协议回归
 │
 ├── checkpoints/                    # 已训练模型权重（*.pt / *.npz）
 │   ├── ik_2dof_mlp_best.pt         # 2-DOF IK MLP
@@ -297,7 +298,15 @@ uv run src/visualize_mujoco.py --arm 3dof --use_nn --model_type esn
 
 前馈力矩 τ_ff 由神经网络预测，PD 项负责误差纠偏（弱刚度：KP=8, KD=1.5）。
 
-🆕 **MPC 滚动预测优化**：每步在当前工作点线性化动力学，预测未来 N=10 步并解析求解最优力矩序列（QP 解析解，numpy 直接求解，每步 0.1-0.3 ms），只执行第 0 步，下一控制周期滚动重复。无需训练数据，体现"向前看"的预测控制思想。
+这是通过力矩控制实现位置轨迹跟踪：参考位置/速度进入前馈，实际位置/速度进入 PD。
+当前 MLP、ESN、LSTM、GRU 都学习高增益 PD 的总命令 `outputs`；ESN 使用参考状态历史，
+不直接读取实际状态或误差。它不是专门学习摩擦残差的模型，也不能仅凭环状相图证明摩擦迟滞记忆。
+
+**MPC 滚动预测优化**：每步在当前工作点线性化动力学，预测未来 N=10 步，
+用 numpy 求解无约束二次优化，再截断输出力矩，只执行第 0 步并滚动重复。
+它不依赖 NN 训练，但也不是严格的含力矩约束 QP。
+现有 GRU 输出不能直接作为 MPC 的摩擦残差叠加；原 `mpc_gru` 路径已禁用，
+需要先定义一致的残差目标并训练对应模型，才能重新评估组合方案。
 ### 数据生成
 
 ```bash
@@ -389,13 +398,23 @@ with np.load("export/idyn_poly_friction/selected_model.npz") as model:
 
 ```bash
 uv run src/train_idyn.py --model all     # 训练全部 4 种模型（MLP/ESN/LSTM/GRU）
-uv run src/train_idyn.py --model gru     # 只训练 GRU（最优模型）
+uv run src/train_idyn.py --model gru     # 只训练 GRU
 uv run src/train_idyn.py --model lstm
 uv run src/train_idyn.py --model mlp
 uv run src/train_idyn.py --model esn
 ```
 
-权重保存至 `checkpoints/idyn_3dof_{model}_best.pt`。每次只打印训练结束时的一行汇总，不刷屏。
+权重保存至 `checkpoints/idyn_3dof_{model}_best.pt`；重新训练前应归档需要保留的同名权重。
+
+四种模型统一使用末尾 20% 的完整轨迹验证；标准化只使用训练轨迹输入。
+默认 `--warmup 100`：每条轨迹前 100 步（500 Hz 下为 0.2 秒）不计训练损失和验证分数，
+递归模型仍可用这些输入建立状态。MLP/ESN 的 CLI 默认 batch 为 65536，LSTM/GRU 为 256，
+显式 `--batch_size` 对所有模型生效。CLI 默认训练 1000 轮；`--epochs 0` 使用各模型函数默认轮数。
+
+LSTM/GRU 保留独立块、零状态训练，末尾不足完整块的训练样本丢弃；验证改为完整轨迹连续推理，
+每条轨迹只在开头清零，预热后的尾部全部参与评分。此训练策略不等同于整轨迹 BPTT。
+新 checkpoint 的 `model.training_metadata` 记录目标、输入定义、采样周期、数据哈希、轨迹划分和预热协议。
+IK ESN 同样只用训练集估计标准化；修复训练代码不会自动更新旧权重，本次仅进行了隔离的小网络训练验证。
 
 ### 可视化
 
@@ -406,74 +425,87 @@ uv run src/visualize_idyn.py
 # 禁用保存，仅显示窗口
 uv run src/visualize_idyn.py --no-save
 
-# 🆕 重点：MPC 滚动预测控制对比（同时打开 MuJoCo 观测仿真过程）
-uv run src/visualize_idyn.py --model mpc mpc_gru gru --mujoco
+# 在相同轨迹上比较总力矩前馈，窗口明确显示 ESN 方案
+uv run src/visualize_idyn.py --model mlp esn lstm gru mpc --amp_scale 1 --mujoco --viewer-model esn
 
 # 仅 MPC，不加 GRU 前馈，观察纯预测控制效果
-uv run src/visualize_idyn.py --model mpc --mujoco
+uv run src/visualize_idyn.py --model mpc --mujoco --viewer-model mpc
 
-# 调大预测域步数（默认 N=10，越大预测越准，计算也略慢）
-uv run src/visualize_idyn.py --model mpc mpc_gru --mpc_horizon 20 --mujoco
+# 改变预测域步数，评估跟踪误差与计算量（更长不保证更准确）
+uv run src/visualize_idyn.py --model mpc --mpc_horizon 20 --mujoco --viewer-model mpc
 
-# 调整测试轨迹幅值 / 时长
-uv run src/visualize_idyn.py --model mpc mpc_gru gru --amp_scale 3.0 --duration 10.0 --mujoco
+# 增幅测试应与训练幅值 amp_scale=1 分别报告
+uv run src/visualize_idyn.py --model esn gru --amp_scale 2 --duration 10 --mujoco --viewer-model gru
 
 # 全方案对比（所有 NN + MPC，不打开 MuJoCo，自动保存图片）
 uv run src/visualize_idyn.py
 
 # Windows PowerShell（无 MuJoCo 窗口，仅保存图片）：
-$env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --model mpc mpc_gru gru
+$env:MPLBACKEND="Agg"; uv run src/visualize_idyn.py --model mpc esn gru --amp_scale 1
 ```
 
-> 💡 **`--mujoco` 说明**：打开 MuJoCo 被动查看器，实时显示跟踪效果最好方案的仿真动画。  
-> 可用鼠标拖动旋转/平移视角，滚轮缩放。按 `Ctrl+C` 或关闭窗口退出。
+`--mujoco` 打开真实力矩控制＋`mj_step` 的动力学窗口，`--viewer-model` 明确选择显示方案，
+红色目标球跟随期望末端位置；窗口不会自动判定哪个算法最好。
+控制积分保持 500 Hz，窗口约 56 Hz 刷新，避免屏幕垂直同步把控制循环拖慢；画面显示当前方案和即时关节误差。
+可用鼠标拖动旋转/平移视角，滚轮缩放，关闭窗口退出。
+未指定幅值时默认 `amp_scale=2`，高于训练生成时的幅值设置，不能混作训练幅值下的测试。
 
 ### IDyn 模型架构
 
 | 模型 | 架构 | 记忆 | 参数量 |
 |------|------|------|--------|
-| IDynMLP | 4×Linear(256, Tanh) + 输入归一化 | 无 | ~330K |
+| IDynMLP | 4×Linear(256, Tanh) + 输入归一化 | 无 | 199,939 |
 | IDynESN | 固定储层(512) + MLP读出 | 递归状态 | ~66K 可训练 |
-| IDynLSTM | 2层LSTM(256) + Linear | 遗忘/输入/输出门 | ~790K |
-| IDynGRU | 2层GRU(256) + Linear | 重置/更新门 | ~595K |
+| IDynLSTM | 4层LSTM(256) + Linear | 遗忘/输入/输出门 | 1,850,115 |
+| IDynGRU | 4层GRU(256) + Linear | 重置/更新门 | 1,387,779 |
 
 输入：`[q₁,q₂,q₃, dq₁,dq₂,dq₃]`（6维）  输出：`[τ₁, τ₂, τ₃]`（N·m）
+表中架构和参数量取自现有 checkpoint；训练函数与 CLI 的默认值可不同。
 
 ---
 
 ## 📊 训练结果
 
-### 🎯 IK 末端位置误差（8000 随机测试点）
+### 🎯 IK 末端位置误差（8000 随机测试点，seed=42）
 
-| 模型 | 2-DOF 均值 | 2-DOF p95 | 3-DOF 均值 | 3-DOF p95 |
+误差只统计有限且满足全部关节限位的输出，合法解率单独报告，不等于精度成功率。
+3-DOF 为球壳广域压力测试，包含需要负肘分支的正肘训练域外目标，不等同于训练域内精度。
+
+| 模型 | 2-DOF 合法解率 | 2-DOF 均值／p95 | 3-DOF 合法解率 | 3-DOF 均值／p95 |
 |------|-----------|-----------|-----------|-----------|
-| 解析 IK（基准） | 0.000 mm | 0.00 mm | 0.000 mm | 0.00 mm |
-| MLP IK | 0.923 mm | 2.1 mm | 1.076 mm | 1.9 mm |
-| ESN IK | 6.586 mm | 13.1 mm | 4.863 mm | 9.8 mm |
+| 解析 IK（基准） | 100% | 0.000／0.00 mm | 100% | 0.000／0.00 mm |
+| MLP IK | 100% | 0.920／2.08 mm | 94.4875% | 0.628／1.39 mm |
+| ESN IK | 100% | 6.654／13.07 mm | 95.4625% | 3.986／8.15 mm |
 
-### ⚡ IDyn 闭环跟踪误差（RTX 4090，30 条轨迹）
+两个评估入口使用累计样本数停止，默认 8000 点仅需约 1.3 万／1.8 万个候选；
+旧循环按批次数停止，理论上会生成 1.92 亿个候选。单点与批量解析 IK 共用限位与分支逻辑。
+实时 NN 超限或非有限输出会被拒绝，窗口保留上一有效姿态并提示，缺失权重不会自动冒充解析结果。
 
-以下为已有 `outputs` 示教训练及权重的历史结果；本次标签修复未重新训练模型，
-这些数值不代表版本 2 的 `outputs_inv` / `outputs_bg` 离线预测精度。
+### ⚡ IDyn 闭环跟踪复核（2026-11-10）
 
-| 方案 | 验证 MAE | 闭环误差（均值） | 各关节误差 [J1, J2, J3] | 每步用时 |
-|------|---------|---------------|----------------------|------|
-| 纯 PD（基准，无前馈） | — | 2.433° | [3.354, 2.014, 1.931]° | ~0.01 ms |
-| 🆕 **MPC（滚动预测优化，N=10）** | — | 0.672° | — | 0.1-0.3 ms |
-| 🆕 **MPC + GRU 前馈** | — | 0.416° | — | ~0.4 ms |
-| PD + MLP | 0.042 N·m | 0.276° | [0.609, 0.122, 0.095]° | CPU |
-| PD + ESN | 0.054 N·m | 0.321° | [0.579, 0.183, 0.202]° | CPU |
-| PD + LSTM | 0.043 N·m | 0.112° | [0.190, 0.068, 0.077]° | CPU |
-| **PD + GRU** | **0.014 N·m** | **0.069°** | **[0.107, 0.053, 0.048]°** | CPU |
+使用现有 `outputs` 权重、CPU 单线程推理、500 Hz、每条 6 秒，统计全部时刻与三个关节的平均绝对角误差。
+修复后的有效方案与已保存基线在 seed=999 的两种幅值下逐点一致。旧权重未按新训练协议重训，
+因此移除了原来使用不同划分和状态协议的验证 MAE 横比；下表也不代表 `outputs_bg/inv` 的离线精度。
 
-> 🏆 GRU 前馈比纯 PD 误差降低 **35×**；MPC 比纯 PD 降低 **3.6×**，无需训练数据。
-> MPC+GRU 组合比纯 PD 改善 **5×**；每步 0.1-0.3 ms（原 scipy 迭代 3-10 ms，已用 numpy 解析 QP 替代）。
+| seed／幅值 | PD | MPC | PD+MLP | PD+ESN | PD+LSTM | PD+GRU |
+|------|------:|------:|------:|------:|------:|------:|
+| 999／1 | 2.1170° | 0.6890° | 0.1641° | 0.1935° | 0.0336° | 0.0472° |
+| 1000／1 | 2.1862° | 0.7082° | 0.2035° | 0.2200° | 0.0492° | 0.0514° |
+| 1001／1 | 2.2973° | 0.7865° | 0.1682° | 0.2064° | 0.0396° | 0.0521° |
+| 三条幅值1均值 | 2.2002° | 0.7279° | 0.1786° | 0.2067° | 0.0408° | 0.0502° |
+| 999／2（增幅测试） | 2.4330° | 0.7724° | 0.2755° | 0.3213° | 0.1115° | 0.0695° |
+
+ESN 在这些轨迹上改善 PD，但没有优于 MLP；不能据此宣称摩擦记忆优势或硬件泛化。
+四组六方案均数值有限，积分后无关节越界、无命令饱和；`mj_step` 返回时记录的接触数为零，未监测全部 RK4 内部子阶段。
+完整修复、复现实验与剩余限制见 [审查记录](docs/audit_2026-11-10.md)。
 
 ---
 
 ## 🎮 可视化操作说明
 
-`visualize.py mujoco` 和 `visualize_idyn.py`（`--mujoco` 模式）支持以下键盘操作：
+以下键盘操作属于 `visualize.py mujoco` / `visualize_mujoco.py` 的 IK 几何查看器。
+它们直接设置关节姿态并调用 `mj_forward`，适合检查 IK 几何运动，不能验证摩擦或动力学补偿。
+IDyn 动力学窗口使用独立参考轨迹，不支持这些按键移动参考目标。
 
 | 按键 | 动作 |
 |------|------|
